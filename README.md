@@ -34,7 +34,9 @@ number and source row.
    JSON key outside this repository. Do not commit or share that key.
 5. Set `GOOGLE_APPLICATION_CREDENTIALS` to the key's absolute path. The
    project ID defaults to `university-mgt-system`; set `FIREBASE_PROJECT_ID`
-   only if importing to a different project.
+   only if importing to a different project. The importer targets the existing
+   Firestore database ID `default`; set `FIRESTORE_DATABASE_ID` only if using
+   another database.
 6. Keep `Leave Management.xlsx` and
    `Master File (Recorrect) (88).xlsm - Master File.csv` in the repository
    root, then run `npm run db:import`. To check the input without connecting to

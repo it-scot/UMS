@@ -7,6 +7,7 @@ import { applicationDefault, initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
 const projectId = process.env.FIREBASE_PROJECT_ID ?? "university-mgt-system";
+const databaseId = process.env.FIRESTORE_DATABASE_ID ?? "default";
 const leaveWorkbookPath = path.resolve(
   process.env.LEAVE_WORKBOOK ?? "Leave Management.xlsx",
 );
@@ -282,11 +283,11 @@ async function main() {
     );
   }
 
-  initializeApp({
+  const app = initializeApp({
     credential: applicationDefault(),
     projectId,
   });
-  await writeCollections(getFirestore(), collections);
+  await writeCollections(getFirestore(app, databaseId), collections);
 }
 
 main().catch((error) => {

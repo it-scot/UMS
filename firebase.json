@@ -1,5 +1,9 @@
 {
   "firestore": {
+    "database": "default",
+    "location": "asia-southeast1",
+    "edition": "ENTERPRISE",
+    "dataAccessMode": "FIRESTORE_NATIVE",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   }

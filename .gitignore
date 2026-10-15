@@ -3,5 +3,6 @@ node_modules/
 .env.*
 !.env.example
 service-account*.json
+ums-privatekey.json
 Leave Management.xlsx
 Master File (Recorrect) (88).xlsm - Master File.csv
