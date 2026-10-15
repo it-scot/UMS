@@ -47,3 +47,36 @@ It uses the worksheet ID columns as document IDs, writes in batches, and
 overwrites matching documents without deleting other existing documents.
 Firestore rules deny all client access by default; the trusted Spring Boot
 backend should access Firestore through the Admin SDK.
+
+## Staff profile application (development stage)
+
+The React/Vite frontend lives in `frontend/`; the Spring Boot API lives in
+`backend/`. From the repository root, install the frontend dependencies and
+start the applications in separate terminals:
+
+```powershell
+npm install --prefix frontend
+npm run dev --prefix frontend
+```
+
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS = (Resolve-Path .\ums-privatekey.json).Path
+$env:UMS_DEMO_AUTH_ENABLED = "true"
+mvn -f backend\pom.xml spring-boot:run
+```
+
+The API uses application-default credentials to read the existing
+`university-mgt-system` Firestore database (`default`). Demo sign-in accepts an
+active employee work email from the `employees` collection. It is disabled by
+default and must only be enabled on a trusted local development environment.
+Email entry does not verify identity; anyone who knows an employee email could
+impersonate them while this mode is enabled. Do not expose this mode or its API
+to the public internet. The profile response deliberately excludes NIC,
+personal email, personal addresses, emergency contacts, and bank details.
+If port 8080 is already in use, set `SERVER_PORT` for the backend and set
+`UMS_BACKEND_URL` to that same local URL in the frontend terminal before
+starting Vite.
+
+The sign-in screen, profile view, and sidebar are a first-stage prototype;
+other navigation entries are placeholders. Implement verified authentication
+before granting real users access or deploying this app.

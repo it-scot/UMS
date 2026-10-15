@@ -1,0 +1,15 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: ums-backend
+
+ums:
+  firebase:
+    project-id: ${FIREBASE_PROJECT_ID:university-mgt-system}
+    database-id: ${FIRESTORE_DATABASE_ID:default}
+  demo-auth:
+    enabled: ${UMS_DEMO_AUTH_ENABLED:false}
+  cors:
+    allowed-origins: ${UMS_FRONTEND_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
