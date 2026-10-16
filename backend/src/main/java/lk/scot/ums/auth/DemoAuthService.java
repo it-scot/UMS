@@ -10,7 +10,10 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import lk.scot.ums.profile.EmployeeProfile;
 import org.slf4j.Logger;
@@ -23,9 +26,12 @@ public class DemoAuthService {
     private static final Logger logger = LoggerFactory.getLogger(DemoAuthService.class);
     private static final Set<String> CURRENT_EMPLOYEE_STATUSES =
             Set.of("permanent", "probationary", "intern");
+    private static final Set<String> LOCAL_ADMIN_EMAILS =
+            Set.of("sheran@scot.lk", "it@scot.lk");
 
     private final Firestore firestore;
     private final boolean enabled;
+    private final Map<String, EmployeeProfile> localSessions = new ConcurrentHashMap<>();
 
     public DemoAuthService(
             Firestore firestore,
@@ -51,6 +57,21 @@ public class DemoAuthService {
                     .get();
             List<QueryDocumentSnapshot> matches = result.get().getDocuments();
             if (matches.isEmpty()) {
+                if (LOCAL_ADMIN_EMAILS.contains(normalizedEmail)) {
+                    return new EmployeeProfile(
+                            "",
+                            "",
+                            normalizedEmail.equals("sheran@scot.lk") ? "Sheran" : "IT Administrator",
+                            "",
+                            normalizedEmail.equals("sheran@scot.lk") ? "HR Manager" : "IT Administrator",
+                            "",
+                            normalizedEmail,
+                            "",
+                            "Active",
+                            "Administrator",
+                            ""
+                    );
+                }
                 throw new EmployeeNotFoundException();
             }
             if (matches.size() > 1) {
@@ -89,6 +110,22 @@ public class DemoAuthService {
             logger.error("Firestore employee lookup failed", exception.getCause());
             throw new EmployeeLookupException(exception.getCause());
         }
+    }
+
+    public String createLocalSession(EmployeeProfile employee) {
+        if (!enabled) throw new DemoLoginDisabledException();
+        String token = "local-demo-" + UUID.randomUUID();
+        localSessions.put(token, employee);
+        return token;
+    }
+
+    public EmployeeProfile findLocalSession(String token) {
+        if (!enabled || token == null || !token.startsWith("local-demo-")) return null;
+        return localSessions.get(token);
+    }
+
+    public boolean isEnabled() {
+        return enabled;
     }
 
     static boolean isCurrentEmployeeStatus(String status) {

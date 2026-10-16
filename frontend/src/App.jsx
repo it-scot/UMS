@@ -1,4 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  isSignInWithEmailLink,
+  onAuthStateChanged,
+  sendSignInLinkToEmail,
+  signInWithEmailLink,
+  signOut,
+} from "firebase/auth";
 import {
   ArrowDownToLine,
   ArrowRight,
@@ -10,6 +17,7 @@ import {
   ChevronDown,
   CircleHelp,
   Clock3,
+  ClipboardCheck,
   GraduationCap,
   LayoutDashboard,
   LockKeyhole,
@@ -22,6 +30,8 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import Evaluation from "./Evaluation.jsx";
+import { auth, firebaseConfigured, localEmailLogin } from "./firebase.js";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -45,20 +55,55 @@ function formatDate(value) {
   }).format(date);
 }
 
-function Login({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
+function Login({ onLogin, emailLinkPending, initialError = "" }) {
+  const [email, setEmail] = useState(() => window.localStorage.getItem("emailForSignIn") ?? "");
+  const [error, setError] = useState(initialError);
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => setError(initialError), [initialError]);
 
   async function submit(event) {
     event.preventDefault();
     setError("");
+    setNotice("");
     setBusy(true);
     try {
-      const response = await fetch(`${apiBase}/api/auth/demo-login`, {
+      const normalizedEmail = email.trim();
+      if (!normalizedEmail) throw new Error("Enter your work email address.");
+      if (localEmailLogin) {
+        const response = await fetch(`${apiBase}/api/auth/demo-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message ?? "Unable to start local test session.");
+        window.localStorage.setItem("umsLocalDemoToken", result.idToken);
+        onLogin(result);
+        return;
+      }
+      if (!firebaseConfigured || !auth) {
+        throw new Error("Firebase Authentication is not configured. Add the Firebase web app values to frontend/.env.local.");
+      }
+      let credential;
+      if (emailLinkPending) {
+        credential = await signInWithEmailLink(auth, normalizedEmail, window.location.href);
+        window.localStorage.removeItem("emailForSignIn");
+      } else {
+        await sendSignInLinkToEmail(auth, normalizedEmail, {
+          url: window.location.origin,
+          handleCodeInApp: true,
+        });
+        window.localStorage.setItem("emailForSignIn", normalizedEmail);
+        setNotice(`A secure sign-in link has been sent to ${normalizedEmail}. Open it to finish signing in.`);
+        return;
+      }
+      const idToken = await credential.user.getIdToken();
+      const response = await fetch(`${apiBase}/api/auth/session`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({}),
       });
       const responseText = await response.text();
       let result;
@@ -74,7 +119,7 @@ function Login({ onLogin }) {
       if (!response.ok) {
         throw new Error(result.message ?? "Unable to sign in. Please try again.");
       }
-      onLogin(result);
+      onLogin({ ...result, idToken });
     } catch (requestError) {
       setError(
         requestError instanceof TypeError
@@ -97,14 +142,15 @@ function Login({ onLogin }) {
         <div className="login-eyebrow">STAFF PORTAL</div>
         <h1>Your workday,<br />all in one place.</h1>
         <p className="login-subtitle">
-          Sign in to your university account to view your staff profile.
+          Sign in securely to access your university account and evaluations.
         </p>
         <div className="demo-notice" role="note">
           <ShieldCheck size={18} />
           <span>
-            <strong>Development demo</strong>
-            Email entry doesn’t verify identity. Don’t use this sign-in for
-            real employee data or production access.
+            <strong>{localEmailLogin ? "Local test sign-in" : "Verified staff access"}</strong>
+            {localEmailLogin
+              ? "Enter an active SCOT employee email to test that account locally. No password or email link is required."
+              : "Enter your SCOT work email. We’ll email you a secure sign-in link; no password is needed."}
           </span>
         </div>
         <form className="login-form" onSubmit={submit}>
@@ -126,14 +172,15 @@ function Login({ onLogin }) {
               {error}
             </div>
           )}
+          {notice && <div className="login-link-notice" role="status">{notice}</div>}
           <button className="primary-button login-button" disabled={busy}>
-            {busy ? "Signing in…" : "Continue with email"}
+            {busy ? (localEmailLogin ? "Signing in…" : emailLinkPending ? "Verifying link…" : "Sending link…") : localEmailLogin ? "Continue with email" : emailLinkPending ? "Verify email link" : "Email me a sign-in link"}
             {!busy && <ArrowRight size={18} />}
           </button>
         </form>
         <div className="login-footnote">
           <LockKeyhole size={14} />
-          For authorised staff use
+          {localEmailLogin ? "Local testing only" : "For authorised staff use"}
         </div>
       </section>
       <div className="login-footer">SCOT · UNIVERSITY MANAGEMENT SYSTEM</div>
@@ -155,6 +202,7 @@ function DetailCard({ icon: Icon, label, value, accent = false }) {
 
 function Profile({ employee, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activePage, setActivePage] = useState("profile");
   const name = employee.preferredName || employee.fullName || "Staff member";
   const [firstName] = name.trim().split(/\s+/);
 
@@ -174,13 +222,29 @@ function Profile({ employee, onLogout }) {
         </div>
         <div className="nav-section-label">MAIN MENU</div>
         <nav className="side-nav" aria-label="Main navigation">
-          <a className="nav-item" href="#profile">
+          <a className="nav-item" href="#profile" onClick={() => { setActivePage("profile"); setMenuOpen(false); }}>
             <LayoutDashboard size={18} /><span>Dashboard</span>
           </a>
-          <a className="nav-item nav-item-active" href="#profile" aria-current="page">
+          <a
+            className={`nav-item${activePage === "profile" ? " nav-item-active" : ""}`}
+            href="#profile"
+            onClick={() => { setActivePage("profile"); setMenuOpen(false); }}
+            aria-current={activePage === "profile" ? "page" : undefined}
+          >
             <UserRound size={18} /><span>My Profile</span><span className="active-indicator" />
           </a>
           <div className="nav-section-label nav-section-spaced">UNIVERSITY</div>
+          <a
+            className={`nav-item${activePage === "evaluation" ? " nav-item-active" : ""}`}
+            href="#evaluation"
+            onClick={() => {
+              setActivePage("evaluation");
+              setMenuOpen(false);
+            }}
+            aria-current={activePage === "evaluation" ? "page" : undefined}
+          >
+            <ClipboardCheck size={18} /><span>Evaluation</span><span className="active-indicator" />
+          </a>
           <a className="nav-item nav-item-disabled" href="#profile" aria-disabled="true">
             <CalendarDays size={18} /><span>Attendance</span><span className="coming-soon">SOON</span>
           </a>
@@ -248,6 +312,9 @@ function Profile({ employee, onLogout }) {
           </div>
         </header>
 
+        {activePage === "evaluation" ? (
+          <Evaluation employee={employee} />
+        ) : (
         <div className="page-content">
           <section className="welcome-row">
             <div>
@@ -360,6 +427,7 @@ function Profile({ employee, onLogout }) {
             <span className="footer-links"><a href="#profile">Privacy</a><span>·</span><a href="#profile">Help &amp; support</a></span>
           </footer>
         </div>
+        )}
       </main>
     </div>
   );
@@ -367,9 +435,77 @@ function Profile({ employee, onLogout }) {
 
 export default function App() {
   const [employee, setEmployee] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const [emailLinkPending] = useState(() => Boolean(
+    !localEmailLogin && auth && isSignInWithEmailLink(auth, window.location.href),
+  ));
+
+  useEffect(() => {
+    if (localEmailLogin) {
+      const token = window.localStorage.getItem("umsLocalDemoToken");
+      if (!token) {
+        setAuthLoading(false);
+        return undefined;
+      }
+      fetch(`${apiBase}/api/auth/demo-session`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(async (response) => {
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.message ?? "Local test session expired.");
+          setEmployee({ ...result, idToken: token });
+        })
+        .catch((requestError) => {
+          window.localStorage.removeItem("umsLocalDemoToken");
+          setAuthError(requestError.message || "Local test session expired. Enter your email again.");
+        })
+        .finally(() => setAuthLoading(false));
+      return undefined;
+    }
+    if (!auth) {
+      setAuthLoading(false);
+      return undefined;
+    }
+    return onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setEmployee(null);
+        setAuthLoading(false);
+        return;
+      }
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch(`${apiBase}/api/auth/session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({}),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message ?? "Unable to load your staff account.");
+        setEmployee({ ...result, idToken });
+      } catch (requestError) {
+        setAuthError(
+          requestError instanceof TypeError
+            ? "Can’t reach the server. Make sure the Spring Boot API is running."
+            : requestError.message || "Unable to verify your staff account.",
+        );
+        await signOut(auth);
+        setEmployee(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    });
+  }, []);
+
+  if (authLoading) return <main className="login-page"><p>Verifying your SCOT account…</p></main>;
   return employee ? (
-    <Profile employee={employee} onLogout={() => setEmployee(null)} />
+    <Profile employee={employee} onLogout={async () => {
+      if (localEmailLogin) window.localStorage.removeItem("umsLocalDemoToken");
+      else if (auth) await signOut(auth);
+      setEmployee(null);
+    }} />
   ) : (
-    <Login onLogin={setEmployee} />
+    <Login onLogin={setEmployee} emailLinkPending={emailLinkPending} initialError={authError} />
   );
 }

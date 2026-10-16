@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "db:import": "node scripts/import-firestore.mjs"
+    "db:import": "node scripts/import-firestore.mjs",
+    "backend": "mvn -f backend/pom.xml spring-boot:run",
+    "frontend": "npm run dev --prefix frontend"
   },
   "dependencies": {
     "csv-parse": "^7.0.3",

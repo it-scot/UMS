@@ -48,35 +48,83 @@ overwrites matching documents without deleting other existing documents.
 Firestore rules deny all client access by default; the trusted Spring Boot
 backend should access Firestore through the Admin SDK.
 
-## Staff profile application (development stage)
+## Run the staff portal and 360° evaluations
 
 The React/Vite frontend lives in `frontend/`; the Spring Boot API lives in
-`backend/`. From the repository root, install the frontend dependencies and
-start the applications in separate terminals:
+`backend/`. Evaluation data is read and written by the backend through the
+Firebase Admin SDK. Firestore rules continue to deny direct client access.
 
-```powershell
-npm install --prefix frontend
-npm run dev --prefix frontend
-```
+For localhost UI testing, the ignored `frontend/.env.local` may set
+`VITE_LOCAL_EMAIL_LOGIN=true`. This development-only option uses the backend's
+email-only test login for an active employee record; it does not verify control
+of the email address. Start the backend with `start-backend.bat` or
+`start-all.bat`, which enables demo authentication and binds the API to
+`127.0.0.1`. Demo login is disabled by default in application configuration
+and must never be enabled on a network-accessible server. Local demo sessions
+exist only in backend memory and expire when the backend restarts.
 
-```powershell
-$env:GOOGLE_APPLICATION_CREDENTIALS = (Resolve-Path .\ums-privatekey.json).Path
-$env:UMS_DEMO_AUTH_ENABLED = "true"
-mvn -f backend\pom.xml spring-boot:run
-```
+For verified sign-in, set `VITE_LOCAL_EMAIL_LOGIN=false` or remove it, then:
 
-The API uses application-default credentials to read the existing
-`university-mgt-system` Firestore database (`default`). Demo sign-in accepts an
-active employee work email from the `employees` collection. It is disabled by
-default and must only be enabled on a trusted local development environment.
-Email entry does not verify identity; anyone who knows an employee email could
-impersonate them while this mode is enabled. Do not expose this mode or its API
-to the public internet. The profile response deliberately excludes NIC,
-personal email, personal addresses, emergency contacts, and bank details.
-If port 8080 is already in use, set `SERVER_PORT` for the backend and set
-`UMS_BACKEND_URL` to that same local URL in the frontend terminal before
-starting Vite.
+1. In Firebase Authentication, enable the Email/Password provider and its
+   **Email link (passwordless sign-in)** option. Add `localhost` and the
+   deployed frontend host under Authentication → Settings → Authorized domains.
+   Add the Firebase Web App configuration to an untracked `frontend/.env.local`
+   file:
 
-The sign-in screen, profile view, and sidebar are a first-stage prototype;
-other navigation entries are placeholders. Implement verified authentication
-before granting real users access or deploying this app.
+   ```dotenv
+   VITE_FIREBASE_API_KEY=your-web-api-key
+   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=your-project-id
+   VITE_FIREBASE_APP_ID=your-web-app-id
+   ```
+
+   These are Firebase web-app settings, not service-account credentials. Never
+   put a service-account key in the frontend or commit it.
+2. Create a backend service account with access to the configured Firestore
+   database. Store its JSON key outside source control and set
+   `GOOGLE_APPLICATION_CREDENTIALS` to its absolute path. Set
+   `FIREBASE_PROJECT_ID` and `FIRESTORE_DATABASE_ID` if they differ from the
+   defaults in `application.yml`.
+3. Start the applications from separate PowerShell terminals:
+
+   ```powershell
+   npm install --prefix frontend
+   npm run dev --prefix frontend
+   ```
+
+   ```powershell
+   $env:GOOGLE_APPLICATION_CREDENTIALS = "C:\secure\path\service-account.json"
+   $env:UMS_DEMO_AUTH_ENABLED = "false"
+   $env:SERVER_ADDRESS = "127.0.0.1"
+   mvn -f backend\pom.xml spring-boot:run
+   ```
+
+   The frontend proxies `/api` to `http://localhost:8081` by default. Set
+   `UMS_BACKEND_URL` in the frontend terminal if the backend uses another URL.
+
+In verified mode, staff enter their work email and receive a secure Firebase
+sign-in link; no password is entered in the portal. Only verified `sheran@scot.lk` and
+`it@scot.lk` accounts receive evaluation
+administration access; this allowlist is enforced by the backend. Other active
+employees can access only their own results and their assigned forms. Peer
+evaluator identities are returned only to those backend-authorized admins.
+Create self, primary, and peer question templates before starting a cycle. For
+each department round, choose its departments, the three question templates,
+and custom opening and submission-deadline dates, then publish that round.
+Additional rounds can be published in the same evaluation year with different
+departments, dates, or templates; a department can only be included once in
+that year. Track submissions and release results separately for each round.
+Completed marks remain private to each employee until an admin releases the
+results for their round.
+
+Evaluation templates support individual five-point rating questions and
+five-column rating tables. In a rating table, the form creator defines the
+instruction, the criteria rows, and the label for each rating column.
+Evaluators select one rating for every criterion; table-row ratings contribute
+to the form's average score like individual rating questions.
+
+The evaluation assignment planner uses employee department, designation, and
+supervisor fields from the existing `employees` collection and department
+document IDs from `departments`. Confirm those records are current before
+publishing a cycle. The backend does not silently substitute demo employees or
+marks when records or configuration are missing.

@@ -19,7 +19,7 @@ public class WebConfiguration implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(allowedOrigins)
-                .allowedMethods("GET", "POST", "OPTIONS")
-                .allowedHeaders("Content-Type");
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "OPTIONS")
+                .allowedHeaders("Authorization", "Content-Type");
     }
 }

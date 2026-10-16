@@ -1,4 +1,40 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "evaluationAssignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cycleYear", "order": "ASCENDING" },
+        { "fieldPath": "targetStaffId", "order": "ASCENDING" },
+        { "fieldPath": "evaluatorStaffId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "evaluationAssignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cycleYear", "order": "ASCENDING" },
+        { "fieldPath": "evaluatorStaffId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "evaluationAssignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cycleYear", "order": "ASCENDING" },
+        { "fieldPath": "targetStaffId", "order": "ASCENDING" },
+        { "fieldPath": "kind", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "evaluationAssignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "roundId", "order": "ASCENDING" },
+        { "fieldPath": "targetStaffId", "order": "ASCENDING" },
+        { "fieldPath": "kind", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }
