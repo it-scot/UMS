@@ -31,9 +31,34 @@ import {
   X,
 } from "lucide-react";
 import Evaluation from "./Evaluation.jsx";
+import StaffDirectory from "./StaffDirectory.jsx";
 import { auth, firebaseConfigured, localEmailLogin } from "./firebase.js";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
+
+async function readApiResponse(response, fallbackMessage) {
+  const responseText = await response.text();
+  let result = {};
+  if (responseText) {
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      if (!response.ok && response.status >= 500) {
+        throw new Error("Can’t reach the server. Make sure the Spring Boot API is running.");
+      }
+      throw new Error("The server returned an invalid response.");
+    }
+  }
+  if (!response.ok) {
+    if (result.message) throw new Error(result.message);
+    if (response.status >= 500) {
+      throw new Error("Can’t reach the server. Make sure the Spring Boot API is running.");
+    }
+    throw new Error(fallbackMessage);
+  }
+  if (!responseText) throw new Error("The server returned an empty response.");
+  return result;
+}
 
 function getInitials(name) {
   return name
@@ -77,8 +102,7 @@ function Login({ onLogin, emailLinkPending, initialError = "" }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: normalizedEmail }),
         });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message ?? "Unable to start local test session.");
+        const result = await readApiResponse(response, "Unable to start local test session.");
         window.localStorage.setItem("umsLocalDemoToken", result.idToken);
         onLogin(result);
         return;
@@ -248,8 +272,13 @@ function Profile({ employee, onLogout }) {
           <a className="nav-item nav-item-disabled" href="#profile" aria-disabled="true">
             <CalendarDays size={18} /><span>Attendance</span><span className="coming-soon">SOON</span>
           </a>
-          <a className="nav-item nav-item-disabled" href="#profile" aria-disabled="true">
-            <UsersRound size={18} /><span>Staff directory</span><span className="coming-soon">SOON</span>
+          <a
+            className={`nav-item${activePage === "directory" ? " nav-item-active" : ""}`}
+            href="#directory"
+            onClick={() => { setActivePage("directory"); setMenuOpen(false); }}
+            aria-current={activePage === "directory" ? "page" : undefined}
+          >
+            <UsersRound size={18} /><span>Staff directory</span><span className="active-indicator" />
           </a>
           <a className="nav-item nav-item-disabled" href="#profile" aria-disabled="true">
             <Building2 size={18} /><span>Departments</span><span className="coming-soon">SOON</span>
@@ -314,6 +343,8 @@ function Profile({ employee, onLogout }) {
 
         {activePage === "evaluation" ? (
           <Evaluation employee={employee} />
+        ) : activePage === "directory" ? (
+          <StaffDirectory employee={employee} />
         ) : (
         <div className="page-content">
           <section className="welcome-row">
@@ -453,13 +484,16 @@ export default function App() {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then(async (response) => {
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.message ?? "Local test session expired.");
+          const result = await readApiResponse(response, "Local test session expired.");
           setEmployee({ ...result, idToken: token });
         })
         .catch((requestError) => {
           window.localStorage.removeItem("umsLocalDemoToken");
-          setAuthError(requestError.message || "Local test session expired. Enter your email again.");
+          setAuthError(
+            requestError instanceof TypeError
+              ? "Can’t reach the server. Make sure the Spring Boot API is running."
+              : requestError.message || "Local test session expired. Enter your email again.",
+          );
         })
         .finally(() => setAuthLoading(false));
       return undefined;

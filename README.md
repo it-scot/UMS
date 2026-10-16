@@ -53,6 +53,11 @@ backend should access Firestore through the Admin SDK.
 The React/Vite frontend lives in `frontend/`; the Spring Boot API lives in
 `backend/`. Evaluation data is read and written by the backend through the
 Firebase Admin SDK. Firestore rules continue to deny direct client access.
+Verified staff can use the Staff directory to browse active colleagues by name
+or department and view their SCOT work email, mobile number, position,
+department, and supervisor. It only displays profile photos when an employee record has a
+`profilePhotoUrl`, `photoUrl`, `photoURL`, or `avatarUrl` field; otherwise it
+uses the colleague's initials.
 
 For localhost UI testing, the ignored `frontend/.env.local` may set
 `VITE_LOCAL_EMAIL_LOGIN=true`. This development-only option uses the backend's

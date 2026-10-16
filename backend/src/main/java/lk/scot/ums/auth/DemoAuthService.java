@@ -128,7 +128,7 @@ public class DemoAuthService {
         return enabled;
     }
 
-    static boolean isCurrentEmployeeStatus(String status) {
+    public static boolean isCurrentEmployeeStatus(String status) {
         return status != null
                 && CURRENT_EMPLOYEE_STATUSES.contains(status.trim().toLowerCase(Locale.ROOT));
     }
