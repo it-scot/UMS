@@ -34,6 +34,8 @@ public class SessionController {
                 employee.status(),
                 employee.role(),
                 employee.supervisor(),
+                employee.mobileNumber(),
+                employee.photoUrl(),
                 session.evaluationAdmin(),
                 session.itAdmin()
         );
@@ -82,6 +84,8 @@ public class SessionController {
             String status,
             String role,
             String supervisor,
+            String mobileNumber,
+            String photoUrl,
             boolean evaluationAdmin,
             boolean itAdmin
     ) {

@@ -24,6 +24,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  Phone,
   Search,
   ShieldCheck,
   UserRound,
@@ -67,6 +68,22 @@ function getInitials(name) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+}
+
+function Avatar({ name, photoUrl, className = "" }) {
+  let safePhotoUrl = "";
+  try {
+    const url = new URL(photoUrl);
+    if (url.protocol === "http:" || url.protocol === "https:") safePhotoUrl = url.href;
+  } catch {
+    safePhotoUrl = "";
+  }
+  return (
+    <div className={`avatar ${className}`} aria-label={`${name} profile`}>
+      <span>{getInitials(name)}</span>
+      {safePhotoUrl && <img src={safePhotoUrl} alt="" onError={(event) => event.currentTarget.remove()} />}
+    </div>
+  );
 }
 
 function formatDate(value) {
@@ -224,11 +241,40 @@ function DetailCard({ icon: Icon, label, value, accent = false }) {
   );
 }
 
-function Profile({ employee, onLogout }) {
+function Profile({ employee, onLogout, onEmployeeUpdated }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activePage, setActivePage] = useState("profile");
+  const [profileError, setProfileError] = useState("");
   const name = employee.preferredName || employee.fullName || "Staff member";
   const [firstName] = name.trim().split(/\s+/);
+
+  useEffect(() => {
+    if (activePage !== "profile") return undefined;
+    let cancelled = false;
+    const local = localEmailLogin;
+    fetch(`${apiBase}/api/auth/${local ? "demo-session" : "session"}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${employee.idToken}` },
+      ...(!local ? {
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${employee.idToken}` },
+        body: JSON.stringify({}),
+      } : {}),
+    })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message ?? "Unable to refresh your staff profile.");
+        if (!cancelled) {
+          setProfileError("");
+          onEmployeeUpdated({ ...result, idToken: employee.idToken });
+        }
+      })
+      .catch((requestError) => {
+        if (!cancelled) setProfileError(requestError instanceof TypeError
+          ? "Can’t reach the server. Make sure the Spring Boot API is running."
+          : requestError.message);
+      });
+    return () => { cancelled = true; };
+  }, [activePage, employee.idToken, onEmployeeUpdated]);
 
   return (
     <div className="app-shell">
@@ -291,7 +337,7 @@ function Profile({ employee, onLogout }) {
             <ArrowRight size={15} />
           </div>
           <div className="sidebar-user">
-            <div className="avatar avatar-small">{getInitials(name)}</div>
+            <Avatar name={name} photoUrl={employee.photoUrl} className="avatar-small" />
             <div className="sidebar-user-copy">
               <strong>{name}</strong><span>{employee.designation || "Staff member"}</span>
             </div>
@@ -335,7 +381,7 @@ function Profile({ employee, onLogout }) {
             </button>
             <div className="topbar-divider" />
             <button className="topbar-account" onClick={() => setMenuOpen(!menuOpen)}>
-              <div className="avatar avatar-top">{getInitials(name)}</div>
+              <Avatar name={name} photoUrl={employee.photoUrl} className="avatar-top" />
               <span>{firstName}</span><ChevronDown size={15} />
             </button>
           </div>
@@ -347,6 +393,7 @@ function Profile({ employee, onLogout }) {
           <StaffDirectory employee={employee} />
         ) : (
         <div className="page-content">
+          {profileError && <div className="profile-refresh-error" role="alert">{profileError}</div>}
           <section className="welcome-row">
             <div>
               <h1>My Profile</h1>
@@ -359,7 +406,7 @@ function Profile({ employee, onLogout }) {
 
           <section className="profile-hero">
             <div className="hero-content">
-              <div className="avatar avatar-hero">{getInitials(name)}</div>
+              <Avatar name={name} photoUrl={employee.photoUrl} className="avatar-hero" />
               <div className="hero-copy">
                 <div className="hero-overline">Welcome back, {firstName} <span className="wave">👋</span></div>
                 <h2>{employee.title ? `${employee.title} ` : ""}{employee.fullName || name}</h2>
@@ -417,6 +464,7 @@ function Profile({ employee, onLogout }) {
               </div>
               <div className="detail-list">
                 <DetailCard icon={Mail} label="Work email" value={employee.workEmail} accent />
+                <DetailCard icon={Phone} label="Mobile" value={employee.mobileNumber} />
                 <DetailCard icon={Building2} label="Department" value={employee.department} />
                 <DetailCard icon={BriefcaseBusiness} label="Reports to" value={employee.supervisor} />
               </div>
@@ -534,7 +582,7 @@ export default function App() {
 
   if (authLoading) return <main className="login-page"><p>Verifying your SCOT account…</p></main>;
   return employee ? (
-    <Profile employee={employee} onLogout={async () => {
+    <Profile employee={employee} onEmployeeUpdated={setEmployee} onLogout={async () => {
       if (localEmailLogin) window.localStorage.removeItem("umsLocalDemoToken");
       else if (auth) await signOut(auth);
       setEmployee(null);

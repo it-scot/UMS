@@ -69,6 +69,8 @@ public class DemoAuthService {
                             "",
                             "Active",
                             "Administrator",
+                            "",
+                            "",
                             ""
                     );
                 }
@@ -100,7 +102,9 @@ public class DemoAuthService {
                     date(employee.get("dateJoined")),
                     status,
                     text(employee, "userRole"),
-                    supervisorName(text(employee, "supervisor"))
+                    supervisorName(text(employee, "supervisor")),
+                    firstText(employee, "contactNumber", "mobileNumber"),
+                    firstText(employee, "profilePhotoUrl", "photoUrl", "photoURL", "avatarUrl", "photo")
             );
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -121,7 +125,43 @@ public class DemoAuthService {
 
     public EmployeeProfile findLocalSession(String token) {
         if (!enabled || token == null || !token.startsWith("local-demo-")) return null;
-        return localSessions.get(token);
+        EmployeeProfile sessionEmployee = localSessions.get(token);
+        if (sessionEmployee == null || sessionEmployee.staffId().isBlank()) return sessionEmployee;
+        try {
+            ApiFuture<QuerySnapshot> result = firestore.collection("employees")
+                    .whereEqualTo("staffId", sessionEmployee.staffId())
+                    .get();
+            List<QueryDocumentSnapshot> matches = result.get().getDocuments();
+            if (matches.size() != 1 || !isCurrentEmployeeStatus(text(matches.get(0), "status"))) {
+                return sessionEmployee;
+            }
+            QueryDocumentSnapshot employee = matches.get(0);
+            String departmentId = text(employee, "department");
+            EmployeeProfile refreshed = new EmployeeProfile(
+                    sessionEmployee.staffId(),
+                    text(employee, "nameInFull"),
+                    text(employee, "preferredName"),
+                    text(employee, "title"),
+                    text(employee, "designation"),
+                    lookupName("departments", departmentId, "departmentName"),
+                    text(employee, "email"),
+                    date(employee.get("dateJoined")),
+                    text(employee, "status"),
+                    text(employee, "userRole"),
+                    supervisorName(text(employee, "supervisor")),
+                    firstText(employee, "contactNumber", "mobileNumber"),
+                    firstText(employee, "profilePhotoUrl", "photoUrl", "photoURL", "avatarUrl", "photo")
+            );
+            localSessions.put(token, refreshed);
+            return refreshed;
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            logger.warn("Firestore local session refresh was interrupted");
+            throw new EmployeeLookupException(exception);
+        } catch (ExecutionException exception) {
+            logger.error("Firestore local session refresh failed", exception.getCause());
+            throw new EmployeeLookupException(exception.getCause());
+        }
     }
 
     public boolean isEnabled() {
@@ -168,6 +208,14 @@ public class DemoAuthService {
     private static String text(DocumentSnapshot document, String field) {
         Object value = document.get(field);
         return value == null ? "" : value.toString();
+    }
+
+    private static String firstText(DocumentSnapshot document, String... fields) {
+        for (String field : fields) {
+            String value = text(document, field).trim();
+            if (!value.isBlank()) return value;
+        }
+        return "";
     }
 
     private static String date(Object value) {

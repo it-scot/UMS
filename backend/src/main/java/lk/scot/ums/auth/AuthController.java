@@ -40,6 +40,8 @@ public class AuthController {
         response.put("status", employee.status());
         response.put("role", employee.role());
         response.put("supervisor", employee.supervisor());
+        response.put("mobileNumber", employee.mobileNumber());
+        response.put("photoUrl", employee.photoUrl());
         response.put("evaluationAdmin", java.util.Set.of("sheran@scot.lk", "it@scot.lk").contains(email));
         response.put("itAdmin", "it@scot.lk".equals(email));
         response.put("idToken", demoAuthService.createLocalSession(employee));
@@ -61,7 +63,7 @@ public class AuthController {
                 employee.staffId(), employee.fullName(), employee.preferredName(),
                 employee.title(), employee.designation(), employee.department(),
                 employee.workEmail(), employee.dateJoined(), employee.status(),
-                employee.role(), employee.supervisor(),
+                employee.role(), employee.supervisor(), employee.mobileNumber(), employee.photoUrl(),
                 java.util.Set.of("sheran@scot.lk", "it@scot.lk").contains(email),
                 "it@scot.lk".equals(email)
         );

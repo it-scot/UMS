@@ -11,6 +11,8 @@ public record EmployeeProfile(
         String dateJoined,
         String status,
         String role,
-        String supervisor
+        String supervisor,
+        String mobileNumber,
+        String photoUrl
 ) {
 }

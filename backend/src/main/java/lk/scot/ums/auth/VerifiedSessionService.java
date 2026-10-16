@@ -77,6 +77,8 @@ public class VerifiedSessionService {
                         "",
                         "Active",
                         "Administrator",
+                        "",
+                        "",
                         ""
                 );
             }
@@ -149,8 +151,18 @@ public class VerifiedSessionService {
                 "",
                 status,
                 text(document, "userRole"),
-                supervisor
+                supervisor,
+                firstText(document, "contactNumber", "mobileNumber"),
+                firstText(document, "profilePhotoUrl", "photoUrl", "photoURL", "avatarUrl", "photo")
         );
+    }
+
+    private static String firstText(DocumentSnapshot document, String... fields) {
+        for (String field : fields) {
+            String value = text(document, field).trim();
+            if (!value.isBlank()) return value;
+        }
+        return "";
     }
 
     private static String text(DocumentSnapshot document, String field) {
