@@ -82,12 +82,60 @@ function normalizeQuestion(question) {
   };
 }
 
-function HistoryPanel({ history }) {
+function HistoryPanel({ history, currentResult, currentYear }) {
+  const currentScore = currentResult?.finalScore != null && Number.isFinite(Number(currentResult.finalScore))
+    ? Number(currentResult.finalScore)
+    : null;
+  const pastResults = (history ?? [])
+    .filter((item) => item.finalScore != null)
+    .filter((item) => Number.isFinite(Number(item.finalScore)))
+    .filter((item) => !currentYear || Number(item.cycleYear) !== Number(currentYear))
+    .sort((first, second) => Number(first.cycleYear) - Number(second.cycleYear));
+  const chartItems = [
+    ...pastResults,
+    ...(currentScore == null ? [] : [{
+      id: `current-${currentYear}`,
+      cycleYear: currentYear,
+      finalScore: currentScore,
+      rating: currentResult.rating,
+      current: true,
+    }]),
+  ];
+  const hasPendingCurrent = currentScore == null && currentYear != null;
   return (
-    <Panel title="Past performance" eyebrow="YOUR PUBLISHED HISTORY">
-      {!history?.length ? <p className="empty-results">No previous published evaluation results are available.</p> : (
-        <div className="table-scroll"><table className="employee-results-table"><thead><tr><th>Cycle</th><th>Final mark</th><th>Rating</th></tr></thead><tbody>
-          {history.map((item) => <tr key={item.id ?? item.cycleYear}><td>{item.cycleYear}</td><td><strong>{item.finalScore}%</strong></td><td>{item.rating}</td></tr>)}
+    <Panel className="history-panel" title="Performance history" eyebrow="PUBLISHED RESULTS">
+      <p className="history-panel-intro">Your published evaluation results by year. Current results appear after HR releases them.</p>
+      {chartItems.length || hasPendingCurrent ? (
+        <div className="employee-history-chart" role="img" aria-label={`Published evaluation results: ${chartItems.map((item) => `${item.cycleYear}, ${item.finalScore} percent`).join("; ")}${hasPendingCurrent ? `; ${currentYear} current result awaiting publication` : ""}`}>
+          <div className="history-chart-axis"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>
+          <div className="history-chart-scroll"><div className="history-chart-columns">
+            {chartItems.map((item) => (
+              <div className={`history-chart-column${item.current ? " history-chart-current" : ""}`} key={item.id ?? item.cycleYear}>
+                <strong>{item.finalScore}%</strong>
+                <div className="history-chart-track"><span style={{ height: `${Math.max(0, Math.min(100, Number(item.finalScore)))}%` }} /></div>
+                <span className="history-chart-year">{item.cycleYear}{item.current ? " · Current" : ""}</span>
+                <small>{item.rating}</small>
+              </div>
+            ))}
+            {hasPendingCurrent && (
+              <div className="history-chart-column history-chart-pending">
+                <span className="history-chart-pending-label">Awaiting<br />release</span>
+                <div className="history-chart-track"><span /></div>
+                <span className="history-chart-year">{currentYear} · Current</span>
+                <small>Not published</small>
+              </div>
+            )}
+          </div></div>
+        </div>
+      ) : (
+        <div className="history-chart-empty">
+          <span><Activity size={22} /></span>
+          <div><strong>No published results yet</strong><p>When an evaluation result is released, your score and year-to-year progress will appear here.</p></div>
+        </div>
+      )}
+      {!!pastResults.length && (
+        <div className="table-scroll history-results-table"><table className="employee-results-table"><thead><tr><th>Cycle</th><th>Final mark</th><th>Rating</th></tr></thead><tbody>
+          {pastResults.slice().reverse().map((item) => <tr key={item.id ?? item.cycleYear}><td>{item.cycleYear}</td><td><strong>{item.finalScore}%</strong></td><td>{item.rating}</td></tr>)}
         </tbody></table></div>
       )}
     </Panel>
@@ -488,8 +536,8 @@ function EmployeeEvaluation({ employee }) {
 
   return (
     <>
-      <section className="evaluation-heading"><div><span className="evaluation-eyebrow"><UsersRound size={14} /> MY STAFF EVALUATIONS</span><h1>My Evaluation</h1><p>Complete assigned forms and review your own published result.</p></div><button className="evaluation-secondary-button" onClick={load}><RefreshCw size={14} /> Refresh</button></section>
-      <div className="employee-private-banner"><LockKeyhole size={17} /><span><strong>Your marks are private.</strong> Only you and authorised HR / IT administrators can view your individual result. Peer evaluator identities are hidden from employees.</span></div>
+      <section className="evaluation-heading evaluation-hero employee-evaluation-hero"><div><h1>My Evaluation</h1><p>Complete your assigned forms and review your published result.</p></div><button className="evaluation-secondary-button" onClick={load}><RefreshCw size={14} /> Refresh</button></section>
+      <div className="employee-private-banner"><LockKeyhole size={17} /><span><strong>Your result is private.</strong> Only you and authorised HR / IT administrators can view your individual result. Peer evaluator identities are hidden from employees.</span></div>
       {data?.ownPeerGroups && <div className="evaluation-preview-note"><UsersRound size={16} /><span>{data.ownPeerGroups.manager != null ? `Your anonymous manager peer pool: ${data.ownPeerGroups.manager} other department managers.` : `Your anonymous peer pool: same level ${data.ownPeerGroups.same ?? 0}; ${data.ownPeerGroups.lowerLabel ?? "one level below"} ${data.ownPeerGroups.lowerStatus ?? "Nil"}.`}</span></div>}
       {error && <Message error>{error}</Message>}
       {message && <Message>{message}</Message>}
@@ -560,7 +608,7 @@ function EmployeeEvaluation({ employee }) {
               }}><MessageSquareText size={14} /> Send response</button></>}</div>
             </Panel>
           )}
-          <HistoryPanel history={data.history} />
+          <HistoryPanel history={data.history} currentResult={result} currentYear={cycle.hasOwnEvaluation ? cycle.year : null} />
         </>
       )}
     </>

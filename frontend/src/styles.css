@@ -2299,3 +2299,323 @@ a { color: inherit; text-decoration: none; }
     width: 100%;
   }
 }
+
+.evaluation-page .employee-evaluation-hero {
+  min-height: 112px;
+}
+.evaluation-page .employee-evaluation-hero .evaluation-secondary-button {
+  min-height: 39px;
+  flex: 0 0 auto;
+  border-color: #ffffff80;
+  color: #fff;
+  background: #ffffff1c;
+}
+.evaluation-page .employee-evaluation-hero .evaluation-secondary-button:hover {
+  border-color: #fff;
+  color: #fff;
+  background: #ffffff30;
+}
+.evaluation-page .employee-private-banner {
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid #c8e7dc;
+  border-left: 4px solid #07977c;
+  border-radius: 4px;
+  color: #40584d;
+  background: #eff8f4;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.evaluation-page .employee-private-banner svg {
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  border-radius: 50%;
+  color: #07866f;
+  background: #d9f0e7;
+}
+.evaluation-page .employee-private-banner strong {
+  margin-right: 4px;
+  color: #176d5b;
+}
+.evaluation-page .evaluation-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 30px 22px;
+  border: 1px solid #dce9e3;
+  border-top: 3px solid #07977c;
+  border-radius: 4px;
+  background: #fff;
+  text-align: center;
+}
+.evaluation-page .evaluation-empty-state > span {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #07866f;
+  background: #e5f4ef;
+}
+.evaluation-page .evaluation-empty-state h2 {
+  margin: 0;
+  color: #35443d;
+  font-size: 19px;
+  font-weight: 600;
+}
+.evaluation-page .evaluation-empty-state p {
+  max-width: 520px;
+  margin: 0;
+  color: #68766f;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.evaluation-page .evaluation-empty-state.compact-empty {
+  justify-items: start;
+  padding: 21px;
+  text-align: left;
+}
+.evaluation-page .evaluation-empty-state.compact-empty > span {
+  width: 44px;
+  height: 44px;
+}
+.evaluation-page .history-panel {
+  overflow: hidden;
+  padding: 0 20px 18px;
+  border-top: 3px solid #ffc344;
+}
+.evaluation-page .history-panel .evaluation-panel-heading {
+  margin: 0 -20px 12px;
+  padding: 15px 20px;
+  border-bottom: 1px solid #f0e7d1;
+  background: #fffaf0;
+}
+.evaluation-page .history-panel .evaluation-kicker {
+  color: #987021;
+}
+.evaluation-page .history-panel .evaluation-panel-heading h2 {
+  color: #4c432e;
+  font-size: 18px;
+}
+.evaluation-page .history-panel .empty-results {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed #e8dec5;
+  border-radius: 4px;
+  color: #75694f;
+  background: #fffdf8;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.evaluation-page .history-panel .employee-results-table thead th {
+  color: #755d24;
+  background: #fff5dc;
+}
+.evaluation-page .history-panel-intro {
+  margin: -2px 0 16px;
+  color: #68766f;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.evaluation-page .employee-history-chart {
+  min-height: 280px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 9px;
+  margin: 0 0 18px;
+  padding: 18px 16px 12px 8px;
+  border: 1px solid #f0e7d1;
+  border-radius: 4px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0, transparent calc(25% - 1px), #e9eee9 calc(25% - 1px), #e9eee9 25%),
+    #fffefa;
+}
+.evaluation-page .history-chart-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0 0 38px;
+  color: #7a8178;
+  font-size: 11px;
+  text-align: right;
+}
+.evaluation-page .history-chart-scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+.evaluation-page .history-chart-columns {
+  min-width: max-content;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 24px;
+  padding: 0 10px;
+}
+.evaluation-page .history-chart-column {
+  width: 92px;
+  min-height: 248px;
+  display: grid;
+  grid-template-rows: 20px minmax(100px, 1fr) 28px 18px;
+  justify-items: center;
+  gap: 5px;
+}
+.evaluation-page .history-chart-column > strong {
+  align-self: end;
+  color: #176d5b;
+  font-size: 14px;
+  font-weight: 700;
+}
+.evaluation-page .history-chart-track {
+  width: 42px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  border-radius: 5px 5px 0 0;
+  background: #e9f1ed;
+}
+.evaluation-page .history-chart-track > span {
+  width: 100%;
+  display: block;
+  border-radius: 5px 5px 0 0;
+  background: #08aa75;
+  transition: height .25s ease;
+}
+.evaluation-page .history-chart-current .history-chart-track > span {
+  background: #df384b;
+}
+.evaluation-page .history-chart-current > strong {
+  color: #b83245;
+}
+.evaluation-page .history-chart-year {
+  align-self: center;
+  color: #43514a;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+.evaluation-page .history-chart-column > small {
+  overflow: hidden;
+  max-width: 100%;
+  color: #6d7770;
+  font-size: 10px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.evaluation-page .history-chart-pending .history-chart-track {
+  align-items: stretch;
+  border: 1px dashed #c7b991;
+  background: #fffaf0;
+}
+.evaluation-page .history-chart-pending .history-chart-track > span {
+  background: transparent;
+}
+.evaluation-page .history-chart-pending-label {
+  align-self: end;
+  color: #8a7138;
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+}
+.evaluation-page .history-chart-empty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 104px;
+  margin: 0 0 16px;
+  padding: 18px;
+  border: 1px dashed #d9dfda;
+  border-radius: 4px;
+  background: #fafcfb;
+}
+.evaluation-page .history-chart-empty > span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #07866f;
+  background: #e5f4ef;
+}
+.evaluation-page .history-chart-empty strong {
+  color: #35443d;
+  font-size: 14px;
+}
+.evaluation-page .history-chart-empty p {
+  margin: 5px 0 0;
+  color: #68766f;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.evaluation-page .history-results-table {
+  border-top: 1px solid #eee6d4;
+  padding-top: 12px;
+}
+.evaluation-page .history-results-table .employee-results-table {
+  min-width: 420px;
+}
+.evaluation-page .history-results-table .employee-results-table thead th {
+  color: #755d24;
+  background: #fff5dc;
+}
+
+@media (max-width: 680px) {
+  .evaluation-page .employee-evaluation-hero {
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 12px;
+  }
+  .evaluation-page .employee-evaluation-hero .evaluation-secondary-button {
+    width: auto;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+  .evaluation-page .employee-private-banner {
+    align-items: flex-start;
+    padding: 12px;
+  }
+  .evaluation-page .evaluation-empty-state {
+    padding: 24px 16px;
+  }
+  .evaluation-page .history-panel {
+    padding-right: 13px;
+    padding-left: 13px;
+  }
+  .evaluation-page .history-panel .evaluation-panel-heading {
+    margin-right: -13px;
+    margin-left: -13px;
+    padding-right: 13px;
+    padding-left: 13px;
+  }
+  .evaluation-page .employee-history-chart {
+    min-height: 250px;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 5px;
+    padding: 14px 9px 10px 3px;
+  }
+  .evaluation-page .history-chart-columns {
+    gap: 16px;
+    padding: 0 5px;
+  }
+  .evaluation-page .history-chart-column {
+    width: 78px;
+    min-height: 218px;
+  }
+  .evaluation-page .history-chart-track {
+    width: 36px;
+  }
+  .evaluation-page .history-chart-axis {
+    font-size: 10px;
+  }
+  .evaluation-page .history-chart-empty {
+    align-items: flex-start;
+    padding: 14px;
+  }
+}
