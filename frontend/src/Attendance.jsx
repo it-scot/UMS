@@ -55,31 +55,45 @@ function buildArrivalTrend(records, schedules, year, month) {
     recordsByDate.set(key, [...(recordsByDate.get(key) ?? []), record]);
   }
 
-  const days = Array.from({ length: daysInMonth }, (_, index) => {
+  const days = [];
+  for (let index = 0; index < daysInMonth; index += 1) {
     const date = new Date(year, month, index + 1);
-    const firstEvent = firstEventOfDay(recordsByDate.get(dateKey(date)) ?? []);
+    const dayRecords = recordsByDate.get(dateKey(date)) ?? [];
+    const firstEvent = firstEventOfDay(dayRecords);
     const schedule = schedules.find((item) =>
       String(item.day ?? "").trim().toLowerCase().slice(0, 3)
         === weekdays[date.getDay()].slice(0, 3).toLowerCase(),
     );
     const eventDate = parseDate(firstEvent?.eventTime);
     const start = clockMinutes(schedule?.startTime);
-    if (!eventDate || start === null) {
-      return { day: index + 1, late: false, early: false, classified: false };
-    }
-    const arrival = eventDate.getHours() * 60 + eventDate.getMinutes();
-    return {
+    if (!schedule && !dayRecords.length) continue;
+    const arrival = eventDate ? eventDate.getHours() * 60 + eventDate.getMinutes() : null;
+    const difference = arrival === null || start === null ? null : arrival - start;
+    days.push({
       day: index + 1,
-      late: arrival > start,
-      early: arrival < start,
-      classified: true,
-    };
-  });
+      date: date.toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric" }),
+      schedule,
+      firstEvent,
+      arrival,
+      difference,
+      late: difference !== null && difference > 0,
+      early: difference !== null && difference < 0,
+      onTime: difference === 0,
+      noScan: Boolean(schedule) && !firstEvent,
+      classified: difference !== null,
+    });
+  }
+  const classifiedDays = days.filter((day) => day.classified);
+  const maximumDifference = Math.max(0, ...classifiedDays.map((day) => Math.abs(day.difference)));
   return {
     days,
     late: days.filter((day) => day.late).length,
     early: days.filter((day) => day.early).length,
-    classified: days.filter((day) => day.classified).length,
+    onTime: days.filter((day) => day.onTime).length,
+    noScan: days.filter((day) => day.noScan).length,
+    classified: classifiedDays.length,
+    scale: Math.max(15, Math.ceil(maximumDifference / 15) * 15),
+    shiftWindows: [...new Set(schedules.map((item) => `${item.startTime || "?"}–${item.endTime || "?"}`))],
   };
 }
 
@@ -146,7 +160,6 @@ export default function Attendance({ employee }) {
     })
     .sort((first, second) => parseDate(second.eventTime) - parseDate(first.eventTime));
   const trend = buildArrivalTrend(records, schedules, selectedYear, selectedMonth);
-  const maxTrendCount = Math.max(1, ...trend.days.map((day) => Math.max(day.late, day.early) ? 1 : 0));
 
   function renderEvents(items, includeDate) {
     return (
@@ -249,29 +262,51 @@ export default function Attendance({ employee }) {
           <div className="attendance-state" role="status">Calculating arrival pattern…</div>
         ) : !schedules.length ? (
           <div className="attendance-state"><span className="attendance-state-icon"><Clock3 size={20} /></span><div><strong>No work schedule is available</strong><p>Arrival timing is compared with your scheduled start time.</p></div></div>
-        ) : !trend.classified ? (
-          <div className="attendance-state"><span className="attendance-state-icon"><Clock3 size={20} /></span><div><strong>No scheduled arrival days found</strong><p>There are no recorded events on days with a matching work schedule this month.</p></div></div>
         ) : (
           <>
             <div className="arrival-trend-summary">
-              <div><span className="arrival-legend-dot arrival-dot-late" /><span>Late</span><strong>{trend.late}</strong></div>
-              <div><span className="arrival-legend-dot arrival-dot-early" /><span>Early</span><strong>{trend.early}</strong></div>
-              <small>{trend.classified} scheduled days compared</small>
+              <div className="arrival-month-stat"><span className="arrival-legend-dot arrival-dot-late" /><span>Late</span><strong>{trend.late}</strong></div>
+              <div className="arrival-month-stat"><span className="arrival-legend-dot arrival-dot-early" /><span>Early</span><strong>{trend.early}</strong></div>
+              <div className="arrival-month-stat"><span className="arrival-legend-dot arrival-dot-ontime" /><span>On time</span><strong>{trend.onTime}</strong></div>
+              <small>{trend.classified} of {trend.days.filter((day) => day.schedule).length} scheduled days compared</small>
             </div>
-            <div className="arrival-chart-scroll">
-              <div className="arrival-chart" role="img" aria-label={`Daily early and late first arrivals for ${monthNames[selectedMonth]} ${selectedYear}`} style={{ "--chart-days": trend.days.length }}>
-                {trend.days.map((day) => (
-                  <div className={`arrival-chart-day${day.classified ? " arrival-chart-day-classified" : ""}`} key={day.day} title={`Day ${day.day}: ${day.late ? "late" : day.early ? "early" : day.classified ? "on time" : "no scheduled arrival"}`}>
-                    <div className="arrival-chart-bars">
-                      <span className="arrival-chart-bar arrival-bar-late" style={{ height: day.late ? `${Math.max(9, 80 / maxTrendCount)}%` : "0%" }} />
-                      <span className="arrival-chart-bar arrival-bar-early" style={{ height: day.early ? `${Math.max(9, 80 / maxTrendCount)}%` : "0%" }} />
-                    </div>
-                    <small>{day.day}</small>
-                  </div>
-                ))}
+            <div className="arrival-shift-windows">
+              <span>ALLOCATED SHIFT WINDOWS</span>
+              {trend.shiftWindows.map((window) => <strong key={window}>{window}</strong>)}
+            </div>
+            <div className="arrival-month-chart" aria-label={`Arrival compared with scheduled shift for ${monthNames[selectedMonth]} ${selectedYear}`}>
+              <div className="arrival-month-chart-head">
+                <span>DATE</span><span>ALLOCATED SHIFT</span>
+                <span className="arrival-track-axis"><small>−{trend.scale}m early</small><small>SHIFT START</small><small>+{trend.scale}m late</small></span>
+                <span>FIRST ENTRY</span><span>VARIANCE</span>
               </div>
+              {trend.days.map((day) => {
+                const barWidth = day.difference === null ? 0 : Math.max(2, Math.abs(day.difference) / trend.scale * 48);
+                const status = day.noScan ? "no-scan" : day.late ? "late" : day.early ? "early" : day.onTime ? "on-time" : "unmatched";
+                const variance = day.difference === null
+                  ? day.noScan ? "No scan" : "No shift"
+                  : day.difference === 0 ? "On time" : `${day.difference > 0 ? "+" : "−"}${Math.abs(day.difference)} min`;
+                return (
+                  <div className={`arrival-month-chart-row arrival-row-${status}`} key={day.date}>
+                    <span className="arrival-row-date">{day.date}</span>
+                    <span className="arrival-row-shift">{day.schedule ? `${day.schedule.startTime || "—"}–${day.schedule.endTime || "—"}` : "No shift"}</span>
+                    <span className="arrival-track" title={day.difference === null ? variance : `First entry is ${Math.abs(day.difference)} minutes ${day.difference > 0 ? "after" : day.difference < 0 ? "before" : "at"} shift start`}>
+                      <span className="arrival-track-early" style={{ width: day.difference < 0 ? `${barWidth}%` : "0%" }} />
+                      <span className="arrival-track-zero" />
+                      <span className="arrival-track-late" style={{ width: day.difference > 0 ? `${barWidth}%` : "0%" }} />
+                    </span>
+                    <span className="arrival-row-entry">{day.firstEvent ? formatDateTime(day.firstEvent.eventTime, false) : "—"}</span>
+                    <strong className="arrival-row-variance">{variance}</strong>
+                  </div>
+                );
+              })}
+              {!trend.days.length && <div className="attendance-state"><strong>No shifts or access events in this month</strong></div>}
             </div>
-            <p className="arrival-chart-note">Each day uses the first recorded access event and compares it with that weekday’s scheduled start.</p>
+            <div className="arrival-chart-footnote">
+              <span><i className="arrival-legend-dot arrival-dot-late" />After scheduled start</span>
+              <span><i className="arrival-legend-dot arrival-dot-early" />Before scheduled start</span>
+              <span>{trend.noScan} scheduled {trend.noScan === 1 ? "day" : "days"} without an access event</span>
+            </div>
           </>
         )}
       </section>}

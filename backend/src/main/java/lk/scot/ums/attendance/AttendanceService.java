@@ -3,6 +3,10 @@ package lk.scot.ums.attendance;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
+import com.google.cloud.Timestamp;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -64,8 +68,8 @@ public class AttendanceService {
             for (QueryDocumentSnapshot document : scheduleDocuments.getDocuments()) {
                 Map<String, String> schedule = new HashMap<>();
                 schedule.put("day", text(document, "day"));
-                schedule.put("startTime", text(document, "startTime"));
-                schedule.put("endTime", text(document, "endTime"));
+                schedule.put("startTime", scheduleTime(document, "startTime"));
+                schedule.put("endTime", scheduleTime(document, "endTime"));
                 schedules.add(schedule);
             }
             return Map.of("configured", true, "records", records, "schedules", schedules);
@@ -83,6 +87,20 @@ public class AttendanceService {
 
     private static String text(QueryDocumentSnapshot document, String field) {
         Object value = document.get(field);
+        return value == null ? "" : value.toString().trim();
+    }
+
+    private static String scheduleTime(QueryDocumentSnapshot document, String field) {
+        Object value = document.get(field);
+        if (value instanceof Number fraction && fraction.doubleValue() >= 0 && fraction.doubleValue() < 1) {
+            int minutes = (int) Math.round(fraction.doubleValue() * 24 * 60) % (24 * 60);
+            return String.format(java.util.Locale.ROOT, "%02d:%02d", minutes / 60, minutes % 60);
+        }
+        if (value instanceof Timestamp timestamp) {
+            return DateTimeFormatter.ofPattern("HH:mm")
+                    .withZone(ZoneId.systemDefault())
+                    .format(Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos()));
+        }
         return value == null ? "" : value.toString().trim();
     }
 }

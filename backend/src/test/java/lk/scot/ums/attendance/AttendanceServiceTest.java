@@ -58,7 +58,7 @@ class AttendanceServiceTest {
         when(scheduleQuery.get()).thenReturn(ApiFutures.immediateFuture(scheduleSnapshot));
         when(scheduleSnapshot.getDocuments()).thenReturn(List.of(schedule));
         when(schedule.get("day")).thenReturn("Monday");
-        when(schedule.get("startTime")).thenReturn("08:30");
+        when(schedule.get("startTime")).thenReturn(8.5 / 24);
         when(schedule.get("endTime")).thenReturn("17:00");
 
         Map<String, Object> result = service.myAttendance("staff-token");
@@ -66,6 +66,7 @@ class AttendanceServiceTest {
         assertEquals(true, result.get("configured"));
         assertEquals(1, ((List<?>) result.get("records")).size());
         assertEquals(1, ((List<?>) result.get("schedules")).size());
+        assertEquals("08:30", ((Map<?, ?>) ((List<?>) result.get("schedules")).get(0)).get("startTime"));
         verify(attendance).whereEqualTo("employeeIdentifier", "staff-1");
         verify(attendance).whereEqualTo("pin", "staff-1");
         verify(schedules).whereEqualTo("employeeID", "staff-1");
