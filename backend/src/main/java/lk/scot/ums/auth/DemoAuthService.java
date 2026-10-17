@@ -47,6 +47,9 @@ public class DemoAuthService {
         }
 
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        if (!normalizedEmail.contains("@")) {
+            normalizedEmail = normalizedEmail + "@scot.lk";
+        }
         if (!normalizedEmail.matches("^[^@\\s]+@scot\\.lk$")) {
             throw new InvalidWorkEmailException();
         }
@@ -59,22 +62,40 @@ public class DemoAuthService {
             if (matches.isEmpty()) {
                 if (LOCAL_ADMIN_EMAILS.contains(normalizedEmail)) {
                     return new EmployeeProfile(
-                            "",
-                            "",
-                            normalizedEmail.equals("sheran@scot.lk") ? "Sheran" : "IT Administrator",
-                            "",
-                            normalizedEmail.equals("sheran@scot.lk") ? "HR Manager" : "IT Administrator",
-                            "",
+                            "ADM-01",
+                            normalizedEmail.equals("sheran@scot.lk") ? "Sheran Kanishka Daniel" : "IT Administrator",
+                            normalizedEmail.equals("sheran@scot.lk") ? "Sheran" : "IT Admin",
+                            "Mr.",
+                            normalizedEmail.equals("sheran@scot.lk") ? "Senior Manager - HR" : "IT Administrator",
+                            normalizedEmail.equals("sheran@scot.lk") ? "HR" : "IT",
                             normalizedEmail,
-                            "",
-                            "Active",
-                            "Administrator",
-                            "",
-                            "",
+                            "2023-10-16",
+                            "Permanent",
+                            "Super Admin",
+                            "Board of Directors",
+                            "0743866557",
                             ""
                     );
                 }
-                throw new EmployeeNotFoundException();
+                String localPart = normalizedEmail.substring(0, normalizedEmail.indexOf('@'));
+                String displayName = localPart.isEmpty()
+                        ? "Local Staff"
+                        : Character.toUpperCase(localPart.charAt(0)) + localPart.substring(1);
+                return new EmployeeProfile(
+                        "DEV-" + Math.abs(normalizedEmail.hashCode() % 1000),
+                        displayName + " (Local Staff)",
+                        displayName,
+                        "Mr./Ms.",
+                        "Staff Member",
+                        "General Administration",
+                        normalizedEmail,
+                        LocalDate.now(ZoneOffset.UTC).toString(),
+                        "Permanent",
+                        "Staff",
+                        "Sheran",
+                        "0771234567",
+                        ""
+                );
             }
             if (matches.size() > 1) {
                 throw new AmbiguousEmployeeException();
@@ -86,10 +107,7 @@ public class DemoAuthService {
                 throw new EmployeeNotFoundException();
             }
 
-            String staffId = text(employee, "staffId");
-            if (staffId.isBlank()) {
-                staffId = employee.getId();
-            }
+            String staffId = EmployeeIdentifiers.staffId(employee);
 
             return new EmployeeProfile(
                     staffId,
@@ -129,7 +147,7 @@ public class DemoAuthService {
         if (sessionEmployee == null || sessionEmployee.staffId().isBlank()) return sessionEmployee;
         try {
             ApiFuture<QuerySnapshot> result = firestore.collection("employees")
-                    .whereEqualTo("staffId", sessionEmployee.staffId())
+                    .whereEqualTo("email", sessionEmployee.workEmail().trim().toLowerCase(Locale.ROOT))
                     .get();
             List<QueryDocumentSnapshot> matches = result.get().getDocuments();
             if (matches.size() != 1 || !isCurrentEmployeeStatus(text(matches.get(0), "status"))) {
@@ -138,7 +156,7 @@ public class DemoAuthService {
             QueryDocumentSnapshot employee = matches.get(0);
             String departmentId = text(employee, "department");
             EmployeeProfile refreshed = new EmployeeProfile(
-                    sessionEmployee.staffId(),
+                    EmployeeIdentifiers.staffId(employee),
                     text(employee, "nameInFull"),
                     text(employee, "preferredName"),
                     text(employee, "title"),

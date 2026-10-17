@@ -111,10 +111,7 @@ public class VerifiedSessionService {
         if (!DemoAuthService.isCurrentEmployeeStatus(status)) {
             return null;
         }
-        String staffId = text(document, "staffId");
-        if (staffId.isBlank()) {
-            staffId = document.getId();
-        }
+        String staffId = EmployeeIdentifiers.staffId(document);
         String departmentId = text(document, "department");
         String department = departmentId;
         if (!departmentId.isBlank()) {

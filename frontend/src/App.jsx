@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import Evaluation from "./Evaluation.jsx";
+import Attendance from "./Attendance.jsx";
 import StaffDirectory from "./StaffDirectory.jsx";
 import { auth, firebaseConfigured, localEmailLogin } from "./firebase.js";
 
@@ -111,8 +112,11 @@ function Login({ onLogin, emailLinkPending, initialError = "" }) {
     setNotice("");
     setBusy(true);
     try {
-      const normalizedEmail = email.trim();
+      let normalizedEmail = email.trim();
       if (!normalizedEmail) throw new Error("Enter your work email address.");
+      if (localEmailLogin && !normalizedEmail.includes("@")) {
+        normalizedEmail += "@scot.lk";
+      }
       if (localEmailLogin) {
         const response = await fetch(`${apiBase}/api/auth/demo-login`, {
           method: "POST",
@@ -188,9 +192,9 @@ function Login({ onLogin, emailLinkPending, initialError = "" }) {
         <div className="demo-notice" role="note">
           <ShieldCheck size={18} />
           <span>
-            <strong>{localEmailLogin ? "Local test sign-in" : "Verified staff access"}</strong>
+            <strong>{localEmailLogin ? "Local test sign-in active" : "Verified staff access"}</strong>
             {localEmailLogin
-              ? "Enter an active SCOT employee email to test that account locally. No password or email link is required."
+              ? "Local dev mode: Enter any active employee email to sign in instantly. No password or email link required."
               : "Enter your SCOT work email. We’ll email you a secure sign-in link; no password is needed."}
           </span>
         </div>
@@ -200,14 +204,42 @@ function Login({ onLogin, emailLinkPending, initialError = "" }) {
             <Mail size={18} aria-hidden="true" />
             <input
               id="work-email"
-              type="email"
+              type={localEmailLogin ? "text" : "email"}
               autoComplete="email"
-              placeholder="you@scot.lk"
+              placeholder={localEmailLogin ? "e.g. sheran@scot.lk or sheran" : "you@scot.lk"}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
             />
           </div>
+          {localEmailLogin && (
+            <div className="quick-login-options">
+              <span className="quick-login-title">Quick select local test account:</span>
+              <div className="quick-login-chips">
+                <button
+                  type="button"
+                  className="quick-chip"
+                  onClick={() => setEmail("sheran@scot.lk")}
+                >
+                  sheran@scot.lk <span>(Admin)</span>
+                </button>
+                <button
+                  type="button"
+                  className="quick-chip"
+                  onClick={() => setEmail("it@scot.lk")}
+                >
+                  it@scot.lk <span>(IT Admin)</span>
+                </button>
+                <button
+                  type="button"
+                  className="quick-chip"
+                  onClick={() => setEmail("andrino@scot.lk")}
+                >
+                  andrino@scot.lk <span>(Staff)</span>
+                </button>
+              </div>
+            </div>
+          )}
           {error && (
             <div className="form-error" role="alert">
               {error}
@@ -315,8 +347,13 @@ function Profile({ employee, onLogout, onEmployeeUpdated }) {
           >
             <ClipboardCheck size={18} /><span>Evaluation</span><span className="active-indicator" />
           </a>
-          <a className="nav-item nav-item-disabled" href="#profile" aria-disabled="true">
-            <CalendarDays size={18} /><span>Attendance</span><span className="coming-soon">SOON</span>
+          <a
+            className={`nav-item${activePage === "attendance" ? " nav-item-active" : ""}`}
+            href="#attendance"
+            onClick={() => { setActivePage("attendance"); setMenuOpen(false); }}
+            aria-current={activePage === "attendance" ? "page" : undefined}
+          >
+            <CalendarDays size={18} /><span>Attendance</span><span className="active-indicator" />
           </a>
           <a
             className={`nav-item${activePage === "directory" ? " nav-item-active" : ""}`}
@@ -389,6 +426,8 @@ function Profile({ employee, onLogout, onEmployeeUpdated }) {
 
         {activePage === "evaluation" ? (
           <Evaluation employee={employee} />
+        ) : activePage === "attendance" ? (
+          <Attendance employee={employee} />
         ) : activePage === "directory" ? (
           <StaffDirectory employee={employee} />
         ) : (

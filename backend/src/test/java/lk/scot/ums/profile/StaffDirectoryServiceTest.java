@@ -152,6 +152,11 @@ class StaffDirectoryServiceTest {
         CollectionReference employees = mock(CollectionReference.class);
         QuerySnapshot employeeSnapshot = mock(QuerySnapshot.class);
         when(firestore.collection("employees")).thenReturn(employees);
+        when(sessions.verify("verified-token")).thenReturn(new VerifiedSession(
+                new EmployeeProfile("staff-0", "Directory Viewer", "Viewer", "", "", "", "viewer@scot.lk", "", "Permanent", "Staff", "", "", ""),
+                false,
+                false
+        ));
         when(employees.get()).thenReturn(ApiFutures.immediateFuture(employeeSnapshot));
         when(employeeSnapshot.getDocuments()).thenReturn(
                 List.of(staffMember, supervisor, formerEmployee)
