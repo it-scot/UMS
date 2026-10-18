@@ -4,7 +4,7 @@ echo ========================================================
 echo       Starting Firebase Local Firestore Emulator
 echo ========================================================
 echo.
-echo Firestore Endpoint: 127.0.0.1:8080
+echo Firestore Endpoint: 127.0.0.1:8085
 echo Emulator UI:        http://localhost:4000
 echo.
 echo [INFO] Zero cloud quota used - 100%% free unlimited local reads/writes.
