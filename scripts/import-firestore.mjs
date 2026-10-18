@@ -277,14 +277,20 @@ async function main() {
     return;
   }
 
-  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    throw new Error(
-      "Set GOOGLE_APPLICATION_CREDENTIALS to a Firebase service-account JSON file path.",
-    );
+  const isEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
+  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS && !isEmulator) {
+    const keyCandidate = path.resolve("ums-privatekey.json");
+    if (existsSync(keyCandidate)) {
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = keyCandidate;
+    } else {
+      throw new Error(
+        "Set GOOGLE_APPLICATION_CREDENTIALS to a Firebase service-account JSON file path.",
+      );
+    }
   }
 
   const app = initializeApp({
-    credential: applicationDefault(),
+    ...(isEmulator ? {} : { credential: applicationDefault() }),
     projectId,
   });
   await writeCollections(getFirestore(app, databaseId), collections);

@@ -28,6 +28,11 @@ public class StaffDirectoryService {
 
     private final Firestore firestore;
     private final VerifiedSessionService sessions;
+    private volatile List<StaffMember> cachedStaffList = null;
+    private volatile long staffListCacheExpiry = 0;
+    private volatile List<DepartmentOption> cachedDepartments = null;
+    private volatile long departmentsCacheExpiry = 0;
+    private static final long DIRECTORY_CACHE_TTL_MS = 30_000;
 
     public StaffDirectoryService(Firestore firestore, VerifiedSessionService sessions) {
         this.firestore = firestore;
@@ -36,6 +41,10 @@ public class StaffDirectoryService {
 
     public List<StaffMember> list(String token) {
         sessions.verify(token);
+        long now = System.currentTimeMillis();
+        if (cachedStaffList != null && now < staffListCacheExpiry) {
+            return cachedStaffList;
+        }
         try {
             List<QueryDocumentSnapshot> employees = firestore.collection("employees")
                     .get().get().getDocuments();
@@ -66,6 +75,8 @@ public class StaffDirectoryService {
                     member -> firstNonBlank(member.preferredName(), member.fullName()),
                     String.CASE_INSENSITIVE_ORDER
             ));
+            cachedStaffList = staff;
+            staffListCacheExpiry = now + DIRECTORY_CACHE_TTL_MS;
             return staff;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -79,6 +90,10 @@ public class StaffDirectoryService {
 
     public List<DepartmentOption> departments(String token) {
         sessions.verify(token);
+        long now = System.currentTimeMillis();
+        if (cachedDepartments != null && now < departmentsCacheExpiry) {
+            return cachedDepartments;
+        }
         try {
             List<DepartmentOption> departments = new ArrayList<>();
             for (QueryDocumentSnapshot department : firestore.collection("departments")
@@ -91,6 +106,8 @@ public class StaffDirectoryService {
             departments.sort(Comparator.comparing(
                     DepartmentOption::name, String.CASE_INSENSITIVE_ORDER
             ));
+            cachedDepartments = departments;
+            departmentsCacheExpiry = now + DIRECTORY_CACHE_TTL_MS;
             return departments;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -180,6 +197,8 @@ public class StaffDirectoryService {
                     ? null : activeEmployees.get(supervisorId);
             String supervisorName = supervisor == null
                     ? "" : firstText(supervisor, "preferredName", "nameInFull", "fullName");
+            cachedStaffList = null;
+            cachedDepartments = null;
             return toStaffMember(
                     updated,
                     Map.of(updatedDepartmentId, departmentName),

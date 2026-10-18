@@ -35,6 +35,10 @@ public class EvaluationService {
 
     private final Firestore firestore;
     private final VerifiedSessionService sessions;
+    private final Map<String, Staff> staffLookupCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private volatile List<Staff> activeStaffCache = null;
+    private volatile long staffCacheTimestamp = 0;
+    private static final long STAFF_CACHE_TTL_MS = 60_000;
 
     public EvaluationService(Firestore firestore, VerifiedSessionService sessions) {
         this.firestore = firestore;
@@ -1141,51 +1145,71 @@ public class EvaluationService {
         return results;
     }
 
-    private List<Staff> activeEmployees() throws InterruptedException, ExecutionException {
-        List<Staff> staff = new ArrayList<>();
+    private synchronized void ensureStaffCacheLoaded() throws InterruptedException, ExecutionException {
+        long now = System.currentTimeMillis();
+        if (activeStaffCache != null && (now - staffCacheTimestamp) < STAFF_CACHE_TTL_MS) {
+            return;
+        }
+
+        Map<String, String> departmentNames = new HashMap<>();
+        for (QueryDocumentSnapshot deptDoc : firestore.collection("departments").get().get().getDocuments()) {
+            departmentNames.put(deptDoc.getId(), firstText(deptDoc, "departmentName", "name"));
+        }
+
+        List<Staff> staffList = new ArrayList<>();
+        Map<String, Staff> newLookup = new HashMap<>();
+
         for (QueryDocumentSnapshot document : firestore.collection("employees").get().get().getDocuments()) {
-            String status = firstText(document, "status", "employmentStatus");
-            if (!Set.of("permanent", "probationary", "intern").contains(status.toLowerCase(Locale.ROOT))) continue;
             String departmentId = firstText(document, "department", "departmentId");
-            DocumentSnapshot department = departmentId.isBlank()
-                    ? null
-                    : firestore.collection("departments").document(departmentId).get().get();
-            String departmentName = department == null || !department.exists()
-                    ? departmentId
-                    : firstText(department, "departmentName", "name");
-            staff.add(new Staff(
-                    firstText(document, "staffId").isBlank() ? document.getId() : firstText(document, "staffId"),
+            String departmentName = departmentNames.getOrDefault(departmentId, departmentId);
+            String staffId = firstText(document, "staffId").isBlank() ? document.getId() : firstText(document, "staffId");
+            Staff member = new Staff(
+                    staffId,
                     firstText(document, "preferredName", "nameInFull", "fullName"),
                     firstText(document, "designation", "title"),
                     departmentId,
                     departmentName,
                     firstText(document, "supervisor", "supervisorId"),
                     firstText(document, "email")
-            ));
+            );
+
+            newLookup.put(document.getId(), member);
+            if (!staffId.isBlank()) {
+                newLookup.put(staffId, member);
+            }
+            String email = firstText(document, "email");
+            if (!email.isBlank()) {
+                newLookup.put(email.toLowerCase(Locale.ROOT), member);
+            }
+
+            String status = firstText(document, "status", "employmentStatus");
+            if (Set.of("permanent", "probationary", "intern").contains(status.toLowerCase(Locale.ROOT))) {
+                staffList.add(member);
+            }
         }
-        return staff;
+
+        staffLookupCache.clear();
+        staffLookupCache.putAll(newLookup);
+        activeStaffCache = Collections.unmodifiableList(staffList);
+        staffCacheTimestamp = System.currentTimeMillis();
+    }
+
+    private List<Staff> activeEmployees() throws InterruptedException, ExecutionException {
+        ensureStaffCacheLoaded();
+        return activeStaffCache;
     }
 
     private Staff findStaff(String id) throws InterruptedException, ExecutionException {
-        if (id.isBlank()) return null;
-        DocumentSnapshot document = firestore.collection("employees").document(id).get().get();
-        if (!document.exists()) {
-            for (Staff staff : activeEmployees()) if (staff.id().equals(id)) return staff;
-            return null;
+        if (id == null || id.isBlank()) return null;
+        ensureStaffCacheLoaded();
+        Staff staff = staffLookupCache.get(id);
+        if (staff != null) return staff;
+        for (Map.Entry<String, Staff> entry : staffLookupCache.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(id)) {
+                return entry.getValue();
+            }
         }
-        String departmentId = firstText(document, "department", "departmentId");
-        DocumentSnapshot department = departmentId.isBlank()
-                ? null
-                : firestore.collection("departments").document(departmentId).get().get();
-        return new Staff(
-                firstText(document, "staffId").isBlank() ? document.getId() : firstText(document, "staffId"),
-                firstText(document, "preferredName", "nameInFull", "fullName"),
-                firstText(document, "designation", "title"),
-                departmentId,
-                department == null || !department.exists() ? departmentId : firstText(department, "departmentName", "name"),
-                firstText(document, "supervisor", "supervisorId"),
-                firstText(document, "email")
-        );
+        return null;
     }
 
     private List<QueryDocumentSnapshot> findRoundsForDepartment(String departmentId)
