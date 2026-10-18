@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,6 +35,16 @@ public class StaffDirectoryController {
     @GetMapping("/departments")
     public List<StaffDirectoryService.DepartmentOption> departments(HttpServletRequest request) {
         return staffDirectoryService.departments(bearerToken(request));
+    }
+
+    @PostMapping
+    public ResponseEntity<StaffDirectoryService.StaffMember> create(
+            @RequestBody StaffDirectoryService.StaffCreateRequest body,
+            HttpServletRequest request
+    ) {
+        StaffDirectoryService.StaffMember member =
+                staffDirectoryService.create(bearerToken(request), body);
+        return ResponseEntity.status(HttpStatus.CREATED).body(member);
     }
 
     @PutMapping("/{employeeId}")

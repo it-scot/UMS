@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class VerifiedSessionService {
     private static final Set<String> HR_ADMIN_EMAILS =
-            Set.of("sheran@scot.lk", "it@scot.lk");
+            Set.of("sheran@scot.lk", "it@scot.lk", "hr@scot.lk", "admin@scot.lk");
     private static final String HR_EMAIL = "sheran@scot.lk";
     private static final String IT_EMAIL = "it@scot.lk";
 

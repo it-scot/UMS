@@ -20,6 +20,9 @@ public class AuthController {
         this.demoAuthService = demoAuthService;
     }
 
+    private static final java.util.Set<String> ADMIN_EMAILS =
+            java.util.Set.of("sheran@scot.lk", "it@scot.lk", "hr@scot.lk", "admin@scot.lk");
+
     @PostMapping("/demo-login")
     public ResponseEntity<Map<String, Object>> demoLogin(
             @Valid @RequestBody DemoLoginRequest request,
@@ -42,7 +45,7 @@ public class AuthController {
         response.put("supervisor", employee.supervisor());
         response.put("mobileNumber", employee.mobileNumber());
         response.put("photoUrl", employee.photoUrl());
-        response.put("evaluationAdmin", java.util.Set.of("sheran@scot.lk", "it@scot.lk").contains(email));
+        response.put("evaluationAdmin", ADMIN_EMAILS.contains(email));
         response.put("itAdmin", "it@scot.lk".equals(email));
         response.put("idToken", demoAuthService.createLocalSession(employee));
         return ResponseEntity.ok(response);
@@ -64,7 +67,7 @@ public class AuthController {
                 employee.title(), employee.designation(), employee.department(),
                 employee.workEmail(), employee.dateJoined(), employee.status(),
                 employee.role(), employee.supervisor(), employee.mobileNumber(), employee.photoUrl(),
-                java.util.Set.of("sheran@scot.lk", "it@scot.lk").contains(email),
+                ADMIN_EMAILS.contains(email),
                 "it@scot.lk".equals(email)
         );
     }

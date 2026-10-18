@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,11 +24,23 @@ public class AttendanceController {
 
     @GetMapping("/me")
     public Map<String, Object> myAttendance(HttpServletRequest request) {
+        return attendanceService.myAttendance(token(request));
+    }
+
+    @PostMapping("/punch")
+    public Map<String, Object> recordPunch(
+            @RequestBody(required = false) Map<String, String> body,
+            HttpServletRequest request
+    ) {
+        String type = body != null ? body.getOrDefault("type", "in") : "in";
+        return attendanceService.recordPunch(token(request), type);
+    }
+
+    private static String token(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
-        String token = header != null && header.startsWith("Bearer ")
+        return header != null && header.startsWith("Bearer ")
                 ? header.substring("Bearer ".length()).trim()
                 : "";
-        return attendanceService.myAttendance(token);
     }
 
     @ExceptionHandler(InvalidFirebaseSessionException.class)

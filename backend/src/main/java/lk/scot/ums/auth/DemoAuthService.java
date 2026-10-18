@@ -25,9 +25,9 @@ import org.springframework.stereotype.Service;
 public class DemoAuthService {
     private static final Logger logger = LoggerFactory.getLogger(DemoAuthService.class);
     private static final Set<String> CURRENT_EMPLOYEE_STATUSES =
-            Set.of("permanent", "probationary", "intern");
+            Set.of("permanent", "probationary", "intern", "active");
     private static final Set<String> LOCAL_ADMIN_EMAILS =
-            Set.of("sheran@scot.lk", "it@scot.lk");
+            Set.of("sheran@scot.lk", "it@scot.lk", "hr@scot.lk", "admin@scot.lk");
 
     private final Firestore firestore;
     private final boolean enabled;
@@ -61,13 +61,24 @@ public class DemoAuthService {
             List<QueryDocumentSnapshot> matches = result.get().getDocuments();
             if (matches.isEmpty()) {
                 if (LOCAL_ADMIN_EMAILS.contains(normalizedEmail)) {
+                    String fullName = normalizedEmail.equals("sheran@scot.lk")
+                            ? "Sheran Kanishka Daniel"
+                            : normalizedEmail.equals("hr@scot.lk") ? "HR Administrator"
+                            : normalizedEmail.equals("admin@scot.lk") ? "University Administrator" : "IT Administrator";
+                    String preferred = normalizedEmail.equals("sheran@scot.lk")
+                            ? "Sheran"
+                            : normalizedEmail.equals("hr@scot.lk") ? "HR Admin"
+                            : normalizedEmail.equals("admin@scot.lk") ? "Admin" : "IT Admin";
                     return new EmployeeProfile(
-                            "ADM-01",
-                            normalizedEmail.equals("sheran@scot.lk") ? "Sheran Kanishka Daniel" : "IT Administrator",
-                            normalizedEmail.equals("sheran@scot.lk") ? "Sheran" : "IT Admin",
+                            normalizedEmail.equals("it@scot.lk") ? "ADM-IT"
+                                    : normalizedEmail.equals("admin@scot.lk") ? "ADM-GEN" : "ADM-HR",
+                            fullName,
+                            preferred,
                             "Mr.",
-                            normalizedEmail.equals("sheran@scot.lk") ? "Senior Manager - HR" : "IT Administrator",
-                            normalizedEmail.equals("sheran@scot.lk") ? "HR" : "IT",
+                            normalizedEmail.equals("it@scot.lk") ? "IT Administrator"
+                                    : normalizedEmail.equals("admin@scot.lk") ? "University Administrator" : "Senior Manager - HR",
+                            normalizedEmail.equals("it@scot.lk") ? "IT"
+                                    : normalizedEmail.equals("admin@scot.lk") ? "Administration" : "HR",
                             normalizedEmail,
                             "2023-10-16",
                             "Permanent",

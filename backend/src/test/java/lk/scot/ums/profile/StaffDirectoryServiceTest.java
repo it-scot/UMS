@@ -59,6 +59,30 @@ class StaffDirectoryServiceTest {
     }
 
     @Test
+    void refusesEmployeeCreationFromNonAdministrators() {
+        EmployeeProfile employee = new EmployeeProfile(
+                "staff-1", "Alex Smith", "Alex", "", "Lecturer", "Computing",
+                "alex@scot.lk", "", "Permanent", "Staff", "", "", ""
+        );
+        when(sessions.verify("staff-token"))
+                .thenReturn(new VerifiedSession(employee, false, false));
+
+        assertThrows(
+                EvaluationForbiddenException.class,
+                () -> service.create(
+                        "staff-token",
+                        new StaffDirectoryService.StaffCreateRequest(
+                                "158", "New Staff", "New", "Mr.", "Lecturer",
+                                "department-1", "new@scot.lk", "+94771234567",
+                                "", "", "2026-10-18", "Permanent", "Staff",
+                                "Monday to Friday", "8:30 to 5:30"
+                        )
+                )
+        );
+        verifyNoInteractions(firestore);
+    }
+
+    @Test
     void hrCanUpdateTheSharedProfileRecord() throws Exception {
         EmployeeProfile admin = new EmployeeProfile(
                 "hr-1", "HR Admin", "HR", "", "HR Manager", "",
@@ -182,6 +206,83 @@ class StaffDirectoryServiceTest {
         assertEquals("Morgan", alex.supervisor());
         assertEquals("https://example.com/alex.jpg", alex.photoUrl());
         verify(sessions).verify("verified-token");
+    }
+
+    @Test
+    void sheranCanUpdateEmployeeProfileAndShiftAllocation() throws Exception {
+        EmployeeProfile sheran = new EmployeeProfile(
+                "sheran-id", "Sheran Gomez", "Sheran", "Mr.", "Senior HR Manager", "HR",
+                "sheran@scot.lk", "+94771239999", "Permanent", "Administrator", "", "", ""
+        );
+        when(sessions.verify("sheran-token")).thenReturn(new VerifiedSession(sheran, true, false));
+
+        QueryDocumentSnapshot current = employee(
+                "staff-1", "Permanent", "Alex Smith", "Alex", "alex@scot.lk",
+                "dept-1", "staff-2"
+        );
+        QueryDocumentSnapshot updated = employee(
+                "staff-1", "Permanent", "Alex Smith Updated", "Alex", "alex@scot.lk",
+                "dept-1", "staff-2"
+        );
+        when(current.exists()).thenReturn(true);
+        when(current.get("staffId")).thenReturn("158");
+        when(updated.get("staffId")).thenReturn("158");
+        when(updated.get("title")).thenReturn("Dr.");
+        when(updated.get("designation")).thenReturn("Associate Professor");
+        when(updated.get("contactNumber")).thenReturn("+94771112222");
+        when(updated.get("photo")).thenReturn("https://example.com/alex.jpg");
+        when(updated.get("dateJoined")).thenReturn("2024-01-15");
+        when(updated.get("status")).thenReturn("Permanent");
+        when(updated.get("userRole")).thenReturn("Staff");
+        when(updated.get("workingDays")).thenReturn("Thursday to Tuesday");
+        when(updated.get("shiftTime")).thenReturn("8:00 to 5:00");
+
+        CollectionReference employees = mock(CollectionReference.class);
+        DocumentReference employeeRef = mock(DocumentReference.class);
+        QuerySnapshot employeeSnapshot = mock(QuerySnapshot.class);
+        when(firestore.collection("employees")).thenReturn(employees);
+        when(employees.document("staff-1")).thenReturn(employeeRef);
+        when(employeeRef.getId()).thenReturn("staff-1");
+        when(employeeRef.get()).thenReturn(
+                ApiFutures.immediateFuture(current),
+                ApiFutures.immediateFuture(updated)
+        );
+        when(employees.get()).thenReturn(ApiFutures.immediateFuture(employeeSnapshot));
+        when(employeeSnapshot.getDocuments()).thenReturn(List.of(current));
+        when(employeeRef.update(org.mockito.ArgumentMatchers.<Map<String, Object>>any()))
+                .thenReturn(ApiFutures.immediateFuture(mock(WriteResult.class)));
+
+        CollectionReference departments = mock(CollectionReference.class);
+        DocumentReference departmentRef = mock(DocumentReference.class);
+        QueryDocumentSnapshot department = mock(QueryDocumentSnapshot.class);
+        when(firestore.collection("departments")).thenReturn(departments);
+        when(departments.document("dept-1")).thenReturn(departmentRef);
+        when(departmentRef.get()).thenReturn(ApiFutures.immediateFuture(department));
+        when(department.exists()).thenReturn(true);
+        when(department.get("departmentName")).thenReturn("Computing");
+
+        StaffDirectoryService.StaffMember result = service.update(
+                "sheran-token",
+                "staff-1",
+                new StaffDirectoryService.StaffUpdateRequest(
+                        "158", "Alex Smith Updated", "Alex", "Dr.", "Associate Professor",
+                        "dept-1", "alex@scot.lk", "+94771112222", "",
+                        "https://example.com/alex.jpg", "2024-01-15", "Permanent", "Staff",
+                        "Thursday to Tuesday", "8:00 to 5:00"
+                )
+        );
+
+        assertEquals("Alex Smith Updated", result.fullName());
+        assertEquals("158", result.staffId());
+        assertEquals("2024-01-15", result.dateJoined());
+        assertEquals("Thursday to Tuesday", result.workingDaysOption());
+        assertEquals("8:00 to 5:00", result.shiftTimeOption());
+        verify(employeeRef).update(org.mockito.ArgumentMatchers.<Map<String, Object>>argThat(
+                changes -> "Alex Smith Updated".equals(changes.get("nameInFull"))
+                        && "158".equals(changes.get("staffId"))
+                        && "Thursday to Tuesday".equals(changes.get("workingDays"))
+                        && "8:00 to 5:00".equals(changes.get("shiftTime"))
+        ));
     }
 
     private static QueryDocumentSnapshot employee(

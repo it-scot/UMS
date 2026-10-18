@@ -72,6 +72,9 @@ public class AttendanceService {
                 schedule.put("endTime", scheduleTime(document, "endTime"));
                 schedules.add(schedule);
             }
+            if (schedules.isEmpty()) {
+                schedules.addAll(defaultSchedules());
+            }
             return Map.of("configured", true, "records", records, "schedules", schedules);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -81,8 +84,56 @@ public class AttendanceService {
         }
     }
 
+    public Map<String, Object> recordPunch(String token, String type) {
+        VerifiedSession session = sessions.verify(token);
+        String staffId = session.employee().staffId().trim();
+        if (staffId.isBlank()) {
+            staffId = "DEV-" + Math.abs(session.employee().workEmail().hashCode() % 1000);
+        }
+        String employeeName = session.employee().preferredName().isBlank()
+                ? session.employee().fullName() : session.employee().preferredName();
+
+        String nowIso = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+                .withZone(ZoneId.of("Asia/Colombo"))
+                .format(Instant.now());
+
+        boolean isOut = "out".equalsIgnoreCase(type) || "leave".equalsIgnoreCase(type);
+        Map<String, Object> event = new HashMap<>();
+        event.put("employeeIdentifier", staffId);
+        event.put("pin", staffId);
+        event.put("employeeName", employeeName);
+        event.put("eventTime", nowIso);
+        event.put("eventName", isOut ? "Clock Out / Leave" : "Clock In / Arrival");
+        event.put("readerState", isOut ? "Exit" : "Entry");
+        event.put("readerName", "Web Portal Punch");
+        event.put("areaName", "Main Campus");
+        event.put("verificationMode", "Self Service");
+
+        try {
+            firestore.collection("attendance").add(event).get();
+            return Map.of("success", true, "type", isOut ? "OUT" : "IN", "eventTime", nowIso);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new EmployeeLookupException(exception);
+        } catch (ExecutionException exception) {
+            throw new EmployeeLookupException(exception.getCause());
+        }
+    }
+
+    private static List<Map<String, String>> defaultSchedules() {
+        List<Map<String, String>> defaults = new ArrayList<>();
+        for (String day : List.of("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")) {
+            Map<String, String> schedule = new HashMap<>();
+            schedule.put("day", day);
+            schedule.put("startTime", "08:30");
+            schedule.put("endTime", "17:30");
+            defaults.add(schedule);
+        }
+        return defaults;
+    }
+
     private static Map<String, Object> unconfigured() {
-        return Map.of("configured", false, "records", List.of(), "schedules", List.of());
+        return Map.of("configured", false, "records", List.of(), "schedules", defaultSchedules());
     }
 
     private static String text(QueryDocumentSnapshot document, String field) {

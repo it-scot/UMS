@@ -34,6 +34,7 @@ import {
 import Evaluation from "./Evaluation.jsx";
 import Attendance from "./Attendance.jsx";
 import StaffDirectory from "./StaffDirectory.jsx";
+import Dashboard from "./Dashboard.jsx";
 import { auth, firebaseConfigured, localEmailLogin } from "./firebase.js";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -219,6 +220,13 @@ function Login({ onLogin, emailLinkPending, initialError = "" }) {
                 <button
                   type="button"
                   className="quick-chip"
+                  onClick={() => setEmail("hr@scot.lk")}
+                >
+                  hr@scot.lk <span>(HR Admin)</span>
+                </button>
+                <button
+                  type="button"
+                  className="quick-chip"
                   onClick={() => setEmail("sheran@scot.lk")}
                 >
                   sheran@scot.lk <span>(Admin)</span>
@@ -275,7 +283,7 @@ function DetailCard({ icon: Icon, label, value, accent = false }) {
 
 function Profile({ employee, onLogout, onEmployeeUpdated }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activePage, setActivePage] = useState("profile");
+  const [activePage, setActivePage] = useState("dashboard");
   const [profileError, setProfileError] = useState("");
   const name = employee.preferredName || employee.fullName || "Staff member";
   const [firstName] = name.trim().split(/\s+/);
@@ -324,8 +332,13 @@ function Profile({ employee, onLogout, onEmployeeUpdated }) {
         </div>
         <div className="nav-section-label">MAIN MENU</div>
         <nav className="side-nav" aria-label="Main navigation">
-          <a className="nav-item" href="#profile" onClick={() => { setActivePage("profile"); setMenuOpen(false); }}>
-            <LayoutDashboard size={18} /><span>Dashboard</span>
+          <a
+            className={`nav-item${activePage === "dashboard" ? " nav-item-active" : ""}`}
+            href="#dashboard"
+            onClick={() => { setActivePage("dashboard"); setMenuOpen(false); }}
+            aria-current={activePage === "dashboard" ? "page" : undefined}
+          >
+            <LayoutDashboard size={18} /><span>Dashboard</span><span className="active-indicator" />
           </a>
           <a
             className={`nav-item${activePage === "profile" ? " nav-item-active" : ""}`}
@@ -424,7 +437,9 @@ function Profile({ employee, onLogout, onEmployeeUpdated }) {
           </div>
         </header>
 
-        {activePage === "evaluation" ? (
+        {activePage === "dashboard" ? (
+          <Dashboard employee={employee} onNavigate={(page) => setActivePage(page)} />
+        ) : activePage === "evaluation" ? (
           <Evaluation employee={employee} />
         ) : activePage === "attendance" ? (
           <Attendance employee={employee} />
