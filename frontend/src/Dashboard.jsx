@@ -851,7 +851,7 @@ export default function Dashboard({ employee, onNavigate }) {
                 <span className="panel-kicker">PERSONAL NOTIFICATIONS</span>
                 <h3>My Reminders</h3>
               </div>
-              <div className="panel-heading-icon panel-heading-icon-purple">
+              <div className="panel-heading-icon">
                 <Bell size={16} />
               </div>
             </div>

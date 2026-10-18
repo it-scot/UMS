@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  CalendarDays,
-  Clock3,
-  MapPin,
-  RefreshCw,
-  LogIn,
-  LogOut,
-  Download,
-  CheckCircle2,
   AlertCircle,
-  Timer,
+  BarChart3,
+  Briefcase,
+  CalendarDays,
+  Check,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Briefcase,
+  Clock3,
+  Download,
+  Info,
+  LockKeyhole,
+  LogIn,
+  LogOut,
+  MapPin,
+  RefreshCw,
+  Timer,
   TrendingUp,
   UserCheck,
 } from "lucide-react";
@@ -153,6 +157,8 @@ export default function Attendance({ employee }) {
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(() => now.getMonth());
   const [selectedYear, setSelectedYear] = useState(() => now.getFullYear());
+  const [graphTab, setGraphTab] = useState("hours"); // "hours" | "variance"
+  const [selectedGraphDay, setSelectedGraphDay] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -414,14 +420,30 @@ export default function Attendance({ employee }) {
     const lateDays = monthlyDailyData.filter((d) => d.statusTag === "Late");
     const totalMinutes = presentDays.reduce((acc, d) => acc + d.workingMins, 0);
     const avgMinutes = presentDays.length ? Math.round(totalMinutes / presentDays.length) : 0;
-    const scheduledDays = monthlyDailyData.filter((d) => d.schedule && d.date <= now && d.date.getDay() !== 0 && d.date.getDay() !== 6).length;
+    const scheduledDays = monthlyDailyData.filter(
+      (d) => d.schedule && d.date <= now && d.date.getDay() !== 0 && d.date.getDay() !== 6
+    ).length;
+    const targetDailyMinutes = 510; // 8h 30m standard shift target
+    const scheduledTargetMinutes = scheduledDays * targetDailyMinutes;
+    const netBalanceMinutes = totalMinutes - (presentDays.length * targetDailyMinutes);
+    const shiftCompliancePercent = scheduledTargetMinutes > 0
+      ? Math.min(100, Math.round((totalMinutes / scheduledTargetMinutes) * 100))
+      : 100;
+    const punctualityRate = presentDays.length
+      ? Math.round(((presentDays.length - lateDays.length) / presentDays.length) * 100)
+      : 100;
 
     return {
       presentCount: presentDays.length,
       scheduledCount: scheduledDays,
       lateCount: lateDays.length,
+      totalMinutes,
       totalHoursFormatted: formatDuration(totalMinutes),
       avgDailyHoursFormatted: formatDuration(avgMinutes),
+      scheduledTargetMinutes,
+      netBalanceMinutes,
+      shiftCompliancePercent,
+      punctualityRate,
     };
   }, [monthlyDailyData, now]);
 
@@ -502,64 +524,7 @@ export default function Attendance({ employee }) {
         </div>
       </section>
 
-      {/* 2. SHIFT & CLOCK-IN HUB PANEL */}
-      <article className="panel attendance-shift-panel">
-        <div className="panel-heading">
-          <div>
-            <span className="panel-kicker">SHIFT ALLOCATION &amp; PUNCH HUB</span>
-            <h3>
-              {todaySchedule ? `${todaySchedule.startTime || "08:30"} – ${todaySchedule.endTime || "17:30"}` : "Non-Working Day / Off Duty"} · {employee.workingDays || "Monday to Friday"}
-            </h3>
-          </div>
-          <div className="panel-heading-icon">
-            <Briefcase size={17} />
-          </div>
-        </div>
-
-        <div className="attendance-clock-content">
-          <div className="attendance-clock-info">
-            <span className="attendance-status-label">CURRENT SHIFT STATUS</span>
-            <div className="attendance-status-badge">
-              {hasArrivedToday && !hasLeftToday ? (
-                <span className="pill-active"><span className="pulse-dot" /> Clocked In · Currently in office</span>
-              ) : hasArrivedToday && hasLeftToday ? (
-                <span className="pill-completed"><CheckCircle2 size={13} /> Shift Completed</span>
-              ) : (
-                <span className="pill-unclocked"><Clock3 size={13} /> Not Clocked In Today</span>
-              )}
-            </div>
-          </div>
-
-          <div className="attendance-punch-btns">
-            <button
-              type="button"
-              className="btn-punch btn-punch-in"
-              onClick={() => handlePunch("in")}
-              disabled={punching}
-              title="Record an Arrival punch today"
-            >
-              <LogIn size={14} /> {punching ? "Punching…" : "Clock In"}
-            </button>
-            <button
-              type="button"
-              className="btn-punch btn-punch-out"
-              onClick={() => handlePunch("out")}
-              disabled={punching || !hasArrivedToday}
-              title="Record a Leaving punch today"
-            >
-              <LogOut size={14} /> {punching ? "Punching…" : "Clock Out"}
-            </button>
-          </div>
-        </div>
-
-        {punchNotice && (
-          <div className="attendance-alert-success" role="status">
-            {punchNotice}
-          </div>
-        )}
-      </article>
-
-      {/* 3. FOUR METRIC STATS CARDS (exact Profile page .profile-metrics theme) */}
+      {/* 2. FOUR METRIC STATS CARDS (exact Profile page .profile-metrics theme) */}
       <section className="profile-metrics" aria-label="Today's attendance summary">
         <article className="metric-card metric-slate">
           <span className="metric-label">TODAY'S ARRIVAL TIME</span>
@@ -598,6 +563,131 @@ export default function Attendance({ employee }) {
         </article>
       </section>
 
+      {/* 3. PROFILE-GRID (2-Column Layout matching My Profile: Shift Hub & Monthly Summary) */}
+      <section className="profile-grid">
+        {/* Left Column: Shift Allocation & Punch Hub Panel */}
+        <article className="panel attendance-shift-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="panel-kicker">DAILY SHIFT ALLOCATION</span>
+              <h3>Shift &amp; Clock-In Hub</h3>
+            </div>
+            <div className="panel-heading-icon">
+              <Clock3 size={17} />
+            </div>
+          </div>
+
+          <div className="detail-list">
+            <div className="detail-card detail-card-accent">
+              <div className="detail-icon">
+                <Briefcase size={16} />
+              </div>
+              <div className="detail-copy">
+                <span className="detail-label">Allocated Shift Time</span>
+                <strong className="detail-value">
+                  {todaySchedule ? `${todaySchedule.startTime || "08:30"} – ${todaySchedule.endTime || "17:30"}` : "Non-Working Day / Off Duty"} · {employee.workingDays || "Monday to Friday"}
+                </strong>
+              </div>
+            </div>
+
+            <div className="detail-card">
+              <div className="detail-icon">
+                <UserCheck size={16} />
+              </div>
+              <div className="detail-copy">
+                <span className="detail-label">Current Punch Status</span>
+                <strong className="detail-value">
+                  {hasArrivedToday && !hasLeftToday ? (
+                    <span className="status-clocked-in"><span className="online-dot" /> Clocked In · Currently in office</span>
+                  ) : hasArrivedToday && hasLeftToday ? (
+                    <span className="status-completed"><Check size={13} /> Shift Completed</span>
+                  ) : (
+                    <span className="status-unclocked"><Clock3 size={13} /> Not Clocked In Today</span>
+                  )}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="attendance-punch-actions-row">
+            <button
+              type="button"
+              className="btn-punch btn-punch-in"
+              onClick={() => handlePunch("in")}
+              disabled={punching}
+              title="Record an Arrival punch today"
+            >
+              <LogIn size={14} /> {punching ? "Punching…" : "Clock In"}
+            </button>
+            <button
+              type="button"
+              className="btn-punch btn-punch-out"
+              onClick={() => handlePunch("out")}
+              disabled={punching || !hasArrivedToday}
+              title="Record a Leaving punch today"
+            >
+              <LogOut size={14} /> {punching ? "Punching…" : "Clock Out"}
+            </button>
+          </div>
+
+          {punchNotice && (
+            <div className="attendance-alert-success" role="status">
+              {punchNotice}
+            </div>
+          )}
+
+          <div className="panel-note">
+            <LockKeyhole size={14} /> Synced with campus biometric access control terminals.
+          </div>
+        </article>
+
+        {/* Right Column: Monthly Shift Compliance & Overview */}
+        <article className="panel attendance-summary-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="panel-kicker">MONTHLY SHIFT SUMMARY</span>
+              <h3>{monthNames[selectedMonth]} {selectedYear} Audit</h3>
+            </div>
+            <div className="panel-heading-icon panel-heading-icon-purple">
+              <TrendingUp size={17} />
+            </div>
+          </div>
+
+          <div className="employment-list">
+            <div className="employment-row">
+              <span className="employment-label"><UserCheck size={14} /> Days Present</span>
+              <strong>{monthStats.presentCount} / {monthStats.scheduledCount} Days</strong>
+            </div>
+            <div className="employment-row">
+              <span className="employment-label"><Timer size={14} /> On-Time Rate</span>
+              <strong className="status-text">
+                <span className="online-dot" />
+                {monthStats.scheduledCount ? Math.round(((monthStats.presentCount - monthStats.lateCount) / Math.max(1, monthStats.presentCount)) * 100) : 100}%
+              </strong>
+            </div>
+            <div className="employment-row">
+              <span className="employment-label"><AlertCircle size={14} /> Late Arrivals</span>
+              <strong style={{ color: monthStats.lateCount > 0 ? "#df384b" : "#08aa75" }}>
+                {monthStats.lateCount} Days
+              </strong>
+            </div>
+            <div className="employment-row">
+              <span className="employment-label"><Clock3 size={14} /> Total Working Hours</span>
+              <strong>{monthStats.totalHoursFormatted}</strong>
+            </div>
+            <div className="employment-row">
+              <span className="employment-label"><TrendingUp size={14} /> Average Daily Hours</span>
+              <strong>{monthStats.avgDailyHoursFormatted}</strong>
+            </div>
+          </div>
+
+          <div className="employment-footer">
+            <span className="employment-footer-icon"><Check size={12} /></span>
+            <span>Calculated against allocated shift timings.</span>
+          </div>
+        </article>
+      </section>
+
       {error && (
         <section className="attendance-state attendance-state-error" role="alert">
           <AlertCircle size={18} />
@@ -609,13 +699,254 @@ export default function Attendance({ employee }) {
         </section>
       )}
 
-      {/* 4. RECORDS TABLE & MONTHLY AUDIT PANEL */}
+      {/* 4. SHIFT & ATTENDANCE GRAPH VISUALIZATION PANEL */}
+      {!error && (
+        <article className="panel attendance-graph-panel" aria-label="Shift allocation and attendance graph analytics">
+          <div className="panel-heading">
+            <div>
+              <span className="panel-kicker">HOURS &amp; SHIFT COMPLIANCE</span>
+              <h3>Shift Performance &amp; Attendance Analytics</h3>
+            </div>
+            <div className="graph-heading-actions">
+              <div className="graph-tab-pills">
+                <button
+                  type="button"
+                  className={`graph-tab-pill ${graphTab === "hours" ? "active" : ""}`}
+                  onClick={() => setGraphTab("hours")}
+                >
+                  <BarChart3 size={13} />
+                  <span>Daily Hours vs Shift Target</span>
+                </button>
+                <button
+                  type="button"
+                  className={`graph-tab-pill ${graphTab === "variance" ? "active" : ""}`}
+                  onClick={() => setGraphTab("variance")}
+                >
+                  <TrendingUp size={13} />
+                  <span>Shift Punctuality Variance</span>
+                </button>
+              </div>
+              <div className="panel-heading-icon">
+                <BarChart3 size={17} />
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Analytics Summary Strip */}
+          <div className="graph-analytics-strip">
+            <div className="analytics-chip">
+              <span className="chip-label">ALLOCATED SHIFT TARGET</span>
+              <strong>8h 30m / day</strong>
+              <small>{employee.shiftTime || "8:30 to 5:30"} · {employee.workingDays || "Monday to Friday"}</small>
+            </div>
+            <div className="analytics-chip">
+              <span className="chip-label">MONTHLY SHIFT COMPLIANCE</span>
+              <strong className="stat-green">{monthStats.shiftCompliancePercent}%</strong>
+              <small>{monthStats.totalHoursFormatted} worked / {(monthStats.scheduledCount * 8.5).toFixed(0)}h scheduled</small>
+            </div>
+            <div className="analytics-chip">
+              <span className="chip-label">PUNCTUALITY INDEX</span>
+              <strong className="stat-green">{monthStats.punctualityRate}%</strong>
+              <small>{monthStats.presentCount - monthStats.lateCount} on-time / {monthStats.presentCount} days present</small>
+            </div>
+            <div className="analytics-chip">
+              <span className="chip-label">NET SHIFT BALANCE</span>
+              <strong style={{ color: monthStats.netBalanceMinutes >= 0 ? "#08aa75" : "#df384b" }}>
+                {monthStats.netBalanceMinutes >= 0 ? `+${formatDuration(monthStats.netBalanceMinutes)} OT` : `-${formatDuration(Math.abs(monthStats.netBalanceMinutes))} Deficit`}
+              </strong>
+              <small>Calculated against 8.5h shift target</small>
+            </div>
+          </div>
+
+          {/* Tab 1: Daily Hours vs Target Chart */}
+          {graphTab === "hours" ? (
+            <div className="attendance-chart-wrapper">
+              <div className="chart-header-row">
+                <span className="chart-subtitle">
+                  Daily working hours recorded for {monthNames[selectedMonth]} {selectedYear}. Dashed line indicates your daily 8.5h shift target.
+                </span>
+                <div className="chart-legend">
+                  <span className="legend-item"><span className="legend-dot dot-green" /> Target Met (≥ 8.5h)</span>
+                  <span className="legend-item"><span className="legend-dot dot-amber" /> In Progress / Near Target</span>
+                  <span className="legend-item"><span className="legend-dot dot-red" /> Deficit / Under Hours</span>
+                  <span className="legend-item"><span className="legend-dot dot-gray" /> Off Duty / Weekend</span>
+                </div>
+              </div>
+
+              {/* The Visual Bar Chart */}
+              <div className="bars-chart-container">
+                {/* Reference line for 8.5 hours */}
+                <div className="target-guideline" style={{ bottom: `${(8.5 / 11) * 100}%` }}>
+                  <span className="guideline-badge">Shift Target: 8.5h</span>
+                </div>
+
+                <div className="bars-grid">
+                  {monthlyDailyData.map((d) => {
+                    const hoursVal = d.workingMins ? (d.workingMins / 60) : 0;
+                    const heightPercent = Math.min(100, Math.max(hoursVal > 0 ? 8 : 0, (hoursVal / 11) * 100));
+                    const isSelected = selectedGraphDay?.dayNum === d.dayNum;
+                    const isMet = d.workingMins >= 510;
+                    const isPartial = d.workingMins > 0 && d.workingMins < 510;
+                    const isWeekendOrOff = !d.schedule;
+
+                    let barColorClass = "bar-off";
+                    if (d.isToday && isPartial) barColorClass = "bar-today";
+                    else if (isMet) barColorClass = "bar-met";
+                    else if (isPartial && d.workingMins >= 420) barColorClass = "bar-near";
+                    else if (isPartial) barColorClass = "bar-deficit";
+                    else if (d.schedule && d.date < now) barColorClass = "bar-absent";
+
+                    return (
+                      <div
+                        key={d.dayNum}
+                        className={`bar-column ${isSelected ? "selected-col" : ""} ${d.isToday ? "today-col" : ""}`}
+                        onClick={() => setSelectedGraphDay(d)}
+                        title={`${d.dateFormatted}: ${d.workingFormatted} (Click to inspect)`}
+                      >
+                        <span className="bar-val-text">
+                          {hoursVal > 0 ? `${hoursVal.toFixed(1)}h` : isWeekendOrOff ? "—" : "0h"}
+                        </span>
+                        <div className="bar-track">
+                          <div
+                            className={`bar-fill ${barColorClass}`}
+                            style={{ height: `${heightPercent}%` }}
+                          />
+                        </div>
+                        <span className="bar-day-num">{d.dayNum}</span>
+                        <span className="bar-day-name">{weekdays[d.date.getDay()].slice(0, 2)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Interactive Selected Day Details Drawer */}
+              {selectedGraphDay && (
+                <div className="graph-selected-day-card">
+                  <div className="selected-day-header">
+                    <div>
+                      <span className="selected-day-label">INSPECTED DAY ATTENDANCE</span>
+                      <strong>{selectedGraphDay.dateFormatted}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      className="close-day-btn"
+                      onClick={() => setSelectedGraphDay(null)}
+                    >
+                      Close ×
+                    </button>
+                  </div>
+                  <div className="selected-day-metrics">
+                    <div className="day-metric">
+                      <span>Allocated Shift</span>
+                      <strong>{selectedGraphDay.scheduleFormatted}</strong>
+                    </div>
+                    <div className="day-metric">
+                      <span>Clock In (Arrival)</span>
+                      <strong>{selectedGraphDay.arrivalFormatted}</strong>
+                      <small className={selectedGraphDay.arrivalDiff > 5 ? "txt-red" : "txt-green"}>
+                        {selectedGraphDay.arrivalStatus}
+                      </small>
+                    </div>
+                    <div className="day-metric">
+                      <span>Clock Out (Leaving)</span>
+                      <strong>{selectedGraphDay.leaveFormatted}</strong>
+                      <small className="txt-muted">{selectedGraphDay.leaveStatus}</small>
+                    </div>
+                    <div className="day-metric">
+                      <span>Total Time Worked</span>
+                      <strong className="txt-primary">{selectedGraphDay.workingFormatted}</strong>
+                      <small className={selectedGraphDay.workingMins >= 510 ? "txt-green" : "txt-red"}>
+                        {selectedGraphDay.workingMins >= 510
+                          ? `+${formatDuration(selectedGraphDay.workingMins - 510)} vs Target`
+                          : `-${formatDuration(510 - selectedGraphDay.workingMins)} vs Target`}
+                      </small>
+                    </div>
+                    <div className="day-metric">
+                      <span>Status</span>
+                      <span className={`status-pill ${selectedGraphDay.statusClass}`}>
+                        {selectedGraphDay.statusTag}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Tab 2: Punctuality Variance Track View */
+            <div className="attendance-variance-wrapper">
+              <div className="chart-header-row">
+                <span className="chart-subtitle">
+                  Daily arrival punctuality relative to scheduled start time ({employee.shiftTime ? employee.shiftTime.split("to")[0].trim() : "08:30"}).
+                </span>
+                <div className="chart-legend">
+                  <span className="legend-item"><span className="legend-dot dot-green" /> On Time / Early</span>
+                  <span className="legend-item"><span className="legend-dot dot-red" /> Late Arrival</span>
+                  <span className="legend-item"><span className="legend-dot dot-gray" /> No Punch / Off Day</span>
+                </div>
+              </div>
+
+              <div className="variance-track-list">
+                {monthlyDailyData.filter((d) => d.schedule && d.date <= now).map((d) => {
+                  const isLate = d.arrivalDiff && d.arrivalDiff > 5;
+                  const isEarly = d.arrivalDiff && d.arrivalDiff < -5;
+                  const isPunctual = d.records.length > 0 && !isLate;
+                  const noScan = d.records.length === 0;
+
+                  return (
+                    <div key={d.dayNum} className="variance-track-row">
+                      <div className="variance-date">
+                        <strong>{d.dateFormatted}</strong>
+                        <span>{d.scheduleFormatted}</span>
+                      </div>
+
+                      <div className="variance-bar-area">
+                        <div className="variance-axis">
+                          <span className="axis-mark">-30m</span>
+                          <span className="axis-center">Shift Start (0m)</span>
+                          <span className="axis-mark">+30m</span>
+                        </div>
+                        <div className="variance-track-line">
+                          <div className="variance-center-pin" />
+                          {d.arrivalDiff !== null && (
+                            <div
+                              className={`variance-pill-indicator ${isLate ? "is-late" : isEarly ? "is-early" : "is-ontime"}`}
+                              style={{
+                                left: `${Math.min(95, Math.max(5, 50 + (d.arrivalDiff / 60) * 100))}%`,
+                              }}
+                            >
+                              <span>{d.arrivalFormatted}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="variance-summary">
+                        {noScan ? (
+                          <span className="diff-tag diff-absent">No Scan</span>
+                        ) : (
+                          <span className={`diff-tag ${isLate ? "diff-late" : isEarly ? "diff-early" : "diff-ontime"}`}>
+                            {d.arrivalStatus}
+                          </span>
+                        )}
+                        <span className="working-hours-note">{d.workingFormatted} worked</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </article>
+      )}
+
+      {/* 5. RECORDS TABLE & DETAILED AUDIT PANEL */}
       {!error && (
         <article className="panel attendance-records-panel" aria-label="Attendance records and shift tracking">
           <div className="panel-heading">
             <div>
-              <span className="panel-kicker">MONTHLY AUDIT &amp; SHIFT ALLOCATION</span>
-              <h3>Attendance Records &amp; Shift Compliance</h3>
+              <span className="panel-kicker">DETAILED AUDIT LOG</span>
+              <h3>Daily Attendance Records</h3>
             </div>
             <div className="panel-heading-icon">
               <CalendarDays size={17} />
@@ -624,81 +955,55 @@ export default function Attendance({ employee }) {
 
           <div className="stage-controls-wrap">
             <div className="filter-group">
-                <label>
-                  <span>Month</span>
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    className="select-filter"
-                  >
-                    {monthNames.map((name, idx) => (
-                      <option key={name} value={idx}>{name}</option>
-                    ))}
-                  </select>
-                </label>
+              <label>
+                <span>Month</span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="select-filter"
+                >
+                  {monthNames.map((name, idx) => (
+                    <option key={name} value={idx}>{name}</option>
+                  ))}
+                </select>
+              </label>
 
-                <label>
-                  <span>Year</span>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    className="select-filter"
-                  >
-                    {availableYears.map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                </label>
+              <label>
+                <span>Year</span>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="select-filter"
+                >
+                  {availableYears.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </label>
 
-                <label>
-                  <span>Status</span>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="select-filter"
-                  >
-                    <option value="all">All Days</option>
-                    <option value="present">Present Only</option>
-                    <option value="ontime">On-Time Only</option>
-                    <option value="late">Late Only</option>
-                  </select>
-                </label>
-              </div>
-
-              <button
-                type="button"
-                className="btn-export-excel"
-                onClick={handleExportExcel}
-                title="Download this month's attendance records in Microsoft Excel format"
-              >
-                <Download size={15} /> Export into Excel
-              </button>
+              <label>
+                <span>Filter By Status</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="select-filter"
+                >
+                  <option value="all">All Days</option>
+                  <option value="present">Present Only</option>
+                  <option value="ontime">On-Time Only</option>
+                  <option value="late">Late Only</option>
+                </select>
+              </label>
             </div>
 
-          {/* MONTHLY SUMMARY METRIC CARDS */}
-          <div className="attendance-month-stat-bar">
-            <div className="month-stat-item">
-              <span className="stat-label">Days Present</span>
-              <strong>{monthStats.presentCount} <small>/ {monthStats.scheduledCount} days</small></strong>
-            </div>
-            <div className="month-stat-item">
-              <span className="stat-label">On-Time Rate</span>
-              <strong className="stat-green">
-                {monthStats.scheduledCount ? Math.round(((monthStats.presentCount - monthStats.lateCount) / Math.max(1, monthStats.presentCount)) * 100) : 100}%
-              </strong>
-            </div>
-            <div className="month-stat-item">
-              <span className="stat-label">Late Arrivals</span>
-              <strong className={monthStats.lateCount > 0 ? "stat-coral" : "stat-green"}>{monthStats.lateCount}</strong>
-            </div>
-            <div className="month-stat-item">
-              <span className="stat-label">Total Monthly Hours</span>
-              <strong>{monthStats.totalHoursFormatted}</strong>
-            </div>
-            <div className="month-stat-item">
-              <span className="stat-label">Avg. Daily Hours</span>
-              <strong>{monthStats.avgDailyHoursFormatted}</strong>
-            </div>
+            <button
+              type="button"
+              className="outline-button btn-export-excel-table"
+              onClick={handleExportExcel}
+              title="Download this month's attendance records in Microsoft Excel format"
+            >
+              <Download size={14} /> Export into Excel
+            </button>
           </div>
 
           {/* DETAILED DAILY ATTENDANCE TABLE ACCORDING TO ALLOCATED SHIFT */}
