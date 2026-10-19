@@ -27,7 +27,7 @@ public class DemoAuthService {
     private static final Set<String> CURRENT_EMPLOYEE_STATUSES =
             Set.of("permanent", "probationary", "intern", "active");
     private static final Set<String> LOCAL_ADMIN_EMAILS =
-            Set.of("sheran@scot.lk", "it@scot.lk", "hr@scot.lk", "admin@scot.lk");
+            Set.of("sheran@scot.lk", "it@scot.lk", "hr@scot.lk", "admin@scot.lk", "disitha@scot.lk");
 
     private final Firestore firestore;
     private final boolean enabled;

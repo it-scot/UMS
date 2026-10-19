@@ -21,7 +21,7 @@ public class AuthController {
     }
 
     private static final java.util.Set<String> ADMIN_EMAILS =
-            java.util.Set.of("sheran@scot.lk", "it@scot.lk", "hr@scot.lk", "admin@scot.lk");
+            java.util.Set.of("sheran@scot.lk", "it@scot.lk", "hr@scot.lk", "admin@scot.lk", "disitha@scot.lk");
 
     @PostMapping("/demo-login")
     public ResponseEntity<Map<String, Object>> demoLogin(

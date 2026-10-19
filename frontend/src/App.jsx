@@ -220,30 +220,30 @@ function Login({ onLogin, emailLinkPending, initialError = "" }) {
                 <button
                   type="button"
                   className="quick-chip"
-                  onClick={() => setEmail("hr@scot.lk")}
+                  onClick={() => setEmail("disitha@scot.lk")}
                 >
-                  hr@scot.lk <span>(HR Admin)</span>
+                  disitha@scot.lk <span>(Disitha - Manager)</span>
                 </button>
                 <button
                   type="button"
                   className="quick-chip"
                   onClick={() => setEmail("sheran@scot.lk")}
                 >
-                  sheran@scot.lk <span>(Admin)</span>
+                  sheran@scot.lk <span>(Sheran - Admin)</span>
                 </button>
                 <button
                   type="button"
                   className="quick-chip"
-                  onClick={() => setEmail("it@scot.lk")}
+                  onClick={() => setEmail("yohan@scot.lk")}
                 >
-                  it@scot.lk <span>(IT Admin)</span>
+                  yohan@scot.lk <span>(COO)</span>
                 </button>
                 <button
                   type="button"
                   className="quick-chip"
-                  onClick={() => setEmail("andrino@scot.lk")}
+                  onClick={() => setEmail("musthaque@scot.lk")}
                 >
-                  andrino@scot.lk <span>(Staff)</span>
+                  musthaque@scot.lk <span>(Marketing)</span>
                 </button>
               </div>
             </div>

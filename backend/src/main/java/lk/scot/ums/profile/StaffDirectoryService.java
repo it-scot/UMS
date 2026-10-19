@@ -30,7 +30,7 @@ public class StaffDirectoryService {
     private static final Logger logger = LoggerFactory.getLogger(StaffDirectoryService.class);
     private static final Pattern SCOT_EMAIL = Pattern.compile("^[^@\\s]+@scot\\.lk$");
     private static final Set<String> HR_ADMIN_EMAILS =
-            Set.of("sheran@scot.lk", "it@scot.lk", "hr@scot.lk");
+            Set.of("sheran@scot.lk", "it@scot.lk", "hr@scot.lk", "disitha@scot.lk");
 
     private final Firestore firestore;
     private final VerifiedSessionService sessions;
