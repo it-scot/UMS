@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": process.env.UMS_BACKEND_URL ?? "http://localhost:8081",
+      "/api": process.env.UMS_BACKEND_URL ?? "http://127.0.0.1:8081",
     },
   },
 });
