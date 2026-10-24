@@ -14,10 +14,8 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5173" ^| findstr /i "LISTEN
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8085" ^| findstr /i "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":4000" ^| findstr /i "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
 
-if not exist "emulator-data" mkdir "emulator-data"
-
-echo [2/4] Starting Firebase Local Database (96 Staff Members)...
-start "1. Firebase Database" cmd /k "cd /d ""%~dp0"" && echo Starting Firebase Emulator... && firebase emulators:start --only firestore --import=./emulator-data --export-on-exit=./emulator-data"
+echo [2/4] Starting Firebase Local Database (Port 8085)...
+start "1. Firebase Database" cmd /k "call ""%~dp0scripts\run-emulator.bat"""
 
 :: Wait for emulator on port 8085
 set /a emu_wait=0
@@ -29,11 +27,11 @@ if %errorlevel% equ 0 goto emu_is_up
 if %emu_wait% geq 20 goto emu_is_up
 goto wait_emu_loop
 :emu_is_up
+echo       + Database emulator is ready!
 
-echo [3/4] Starting Spring Boot Backend (Tomcat on port 8081)...
-start "2. UMS Backend" cmd /k "cd /d ""%~dp0"" && if exist ""C:\tools\apache-maven-3.10.0\bin"" set ""PATH=C:\tools\apache-maven-3.10.0\bin;%%PATH%%"" && set UMS_DEMO_AUTH_ENABLED=true&& set SERVER_ADDRESS=127.0.0.1&& set FIRESTORE_EMULATOR_HOST=127.0.0.1:8085&& echo Starting Maven Spring Boot... && mvn -f backend\pom.xml spring-boot:run"
+echo [3/4] Starting Spring Boot Backend (Port 8081)...
+start "2. UMS Backend" cmd /k "call ""%~dp0scripts\run-backend.bat"""
 
-:: Wait for backend on port 8081 before starting frontend
 echo       Waiting for backend to compile and start Tomcat...
 set /a backend_wait=0
 :wait_backend_loop
@@ -41,13 +39,25 @@ set /a backend_wait+=1
 ping 127.0.0.1 -n 2 >nul
 netstat -ano | findstr /i ":8081" | findstr /i "LISTENING" >nul
 if %errorlevel% equ 0 goto backend_is_up
-if %backend_wait% geq 35 goto backend_is_up
-echo       ... initializing (%backend_wait%/35)
+if %backend_wait% geq 40 goto backend_failed
+echo       ... initializing (%backend_wait%/40)
 goto wait_backend_loop
+
+:backend_failed
+echo.
+echo ========================================================
+echo [ERROR] Backend failed to start on port 8081!
+echo Please check the '2. UMS Backend' window for the error.
+echo ========================================================
+echo.
+pause
+exit /b 1
+
 :backend_is_up
+echo       + Backend is fully ready on port 8081!
 
 echo [4/4] Starting Frontend (Vite on port 5173)...
-start "3. UMS Frontend" cmd /k "cd /d ""%~dp0"" && echo Starting Vite Dev Server... && npm run dev --prefix frontend"
+start "3. UMS Frontend" cmd /k "call ""%~dp0scripts\run-frontend.bat"""
 
 ping 127.0.0.1 -n 4 >nul
 start http://localhost:5173
